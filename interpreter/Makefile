@@ -17,7 +17,7 @@ ZIP =		$(NAME).zip
 JSLIB =		wast.js
 WINMAKE =	winmake.bat
 
-DIRS =		util syntax binary text valid runtime exec script host main
+DIRS =		util syntax binary text valid runtime exec script host main verified
 LIBS =		bigarray
 FLAGS = 	-cflags '-w +a-4-27-42-44-45 -warn-error +a-3'
 OCB =		ocamlbuild $(FLAGS) $(DIRS:%=-I %) $(LIBS:%=-libs %)
