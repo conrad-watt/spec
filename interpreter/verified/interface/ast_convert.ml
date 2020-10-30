@@ -21,6 +21,12 @@ let convert_value = function
 	| F32 c -> ConstFloat32 c
 	| F64 c -> ConstFloat64 c
 
+let convert_value_rev = function
+	| ConstInt32 c -> I32 c
+	| ConstInt64 c -> I64 c
+	| ConstFloat32 c -> F32 c
+	| ConstFloat64 c -> F64 c
+
 let convert_int_testop = function
 	| Ast.IntOp.Eqz -> Eqz
 

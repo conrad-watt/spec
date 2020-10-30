@@ -1,15 +1,11 @@
 module WasmRef_Isa : sig
   type nat = Nat of Z.t
-  val integer_of_nat : nat -> Z.t
-  val equal_nata : nat -> nat -> bool
-  type 'a equal = {equal : 'a -> 'a -> bool}
-  val equal : 'a equal -> 'a -> 'a -> bool
-  val equal_nat : nat equal
   type num = One | Bit0 of num | Bit1 of num
   val one_nata : nat
   type 'a one = {one : 'a}
   val one : 'a one -> 'a
   val one_nat : nat one
+  val integer_of_nat : nat -> Z.t
   val times_nata : nat -> nat -> nat
   type 'a times = {times : 'a -> 'a -> 'a}
   val times : 'a times -> 'a -> 'a -> 'a
@@ -24,6 +20,8 @@ module WasmRef_Isa : sig
   val ord_nat : nat ord
   type t = T_i32 | T_i64 | T_f32 | T_f64
   val equal_ta : t -> t -> bool
+  type 'a equal = {equal : 'a -> 'a -> bool}
+  val equal : 'a equal -> 'a -> 'a -> bool
   val equal_t : t equal
   val eq : 'a equal -> 'a -> 'a -> bool
   val equal_list : 'a equal -> 'a list -> 'a list -> bool
@@ -123,6 +121,7 @@ module WasmRef_Isa : sig
   type mut = T_immut | T_mut
   val equal_muta : mut -> mut -> bool
   val equal_mut : mut equal
+  val equal_literal : string equal
   val equal_unita : unit -> unit -> bool
   val equal_unit : unit equal
   val ord_integer : Z.t ord
@@ -157,13 +156,13 @@ module WasmRef_Isa : sig
   type e = Basic of b_e | Trap | Invoke of nat | Label of nat * e list * e list
     | Frame of nat * unit f_ext * e list
   type 'a global_ext = Global_ext of mut * v * 'a
-  type mem = Abs_mem of (ImplWrapper.byte list * nat option)
+  type mem_rep = Abs_mem_rep of ImplWrapper.byte list
   type cl = Func_native of unit inst_ext * tf * t list * b_e list |
     Func_host of tf * host
   and 'a s_ext =
     S_ext of
-      cl list * ((nat option) list * nat option) list * mem list *
-        unit global_ext list * 'a
+      cl list * ((nat option) list * nat option) list *
+        (mem_rep * nat option) list * unit global_ext list * 'a
   and host = Abs_host of (unit s_ext * v list -> (unit s_ext * v list) option)
   type 'a seq = Empty | Insert of 'a * 'a pred | Join of 'a pred * 'a seq
   and 'a pred = Seq of (unit -> 'a seq)
@@ -202,6 +201,7 @@ module WasmRef_Isa : sig
   val suc : nat -> nat
   val max : 'a ord -> 'a -> 'a -> 'a
   val minus_nat : nat -> nat -> nat
+  val equal_nat : nat -> nat -> bool
   val zero_nat : nat
   val nth : 'a list -> nat -> 'a
   val fold : ('a -> 'b -> 'b) -> 'a list -> 'b -> 'b
@@ -211,13 +211,17 @@ module WasmRef_Isa : sig
   val drop : nat -> 'a list -> 'a list
   val null : 'a list -> bool
   val last : 'a list -> 'a
+  val take_tr : nat -> 'a list -> 'a list -> 'a list
   val take : nat -> 'a list -> 'a list
   val foldl : ('a -> 'b -> 'a) -> 'a -> 'b list -> 'a
   val map_option : ('a -> 'b) -> 'a option -> 'b option
   val those : ('a option) list -> ('a list) option
+  val member : 'a equal -> 'a list -> 'a -> bool
+  val distinct : 'a equal -> 'a list -> bool
   val map : ('a -> 'b) -> 'a list -> 'b list
   val nat_of_integer : Z.t -> nat
   val ki64 : nat
+  val replicate_tr : nat -> 'a -> 'a list -> 'a list
   val replicate : nat -> 'a -> 'a list
   val is_none : 'a option -> bool
   val bind : 'a pred -> ('a -> 'b pred) -> 'b pred
@@ -225,27 +229,30 @@ module WasmRef_Isa : sig
   val gen_length : nat -> 'a list -> nat
   val map_filter : ('a -> 'b option) -> 'a list -> 'b list
   val eval : 'a equal -> 'a pred -> 'a -> bool
-  val member : 'a equal -> 'a seq -> 'a -> bool
+  val membera : 'a equal -> 'a seq -> 'a -> bool
   val holds : unit pred -> bool
-  val equal_option : 'a equal -> 'a option -> 'a option -> bool
   val apsnd : ('a -> 'b) -> 'c * 'a -> 'c * 'b
   val divmod_integer : Z.t -> Z.t -> Z.t * Z.t
   val fst : 'a * 'b -> 'a
   val divide_integer : Z.t -> Z.t -> Z.t
   val divide_nat : nat -> nat -> nat
   val size_list : 'a list -> nat
-  val mem_length : mem -> nat
-  val mem_size : mem -> nat
+  val mem_rep_length : mem_rep -> nat
+  val mem_length : mem_rep * nat option -> nat
+  val mem_size : mem_rep * nat option -> nat
+  val pred_option : ('a -> bool) -> 'a option -> bool
   val l_min : 'a limit_t_ext -> nat
   val l_max : 'a limit_t_ext -> nat option
-  val mem_max : mem -> nat option
-  val mem_typing : mem -> 'a limit_t_ext -> bool
+  val limits_compat : 'a limit_t_ext -> 'b limit_t_ext -> bool
   val snd : 'a * 'b -> 'b
+  val mem_max : mem_rep * nat option -> nat option
+  val mem_typing : mem_rep * nat option -> 'a limit_t_ext -> bool
   val tab_typing : (nat option) list * nat option -> 'a limit_t_ext -> bool
   val bytes_replicate : nat -> ImplWrapper.byte -> ImplWrapper.byte list
-  val mem_mk : unit limit_t_ext -> mem
+  val mem_rep_mk : nat -> mem_rep
+  val mem_mk : unit limit_t_ext -> mem_rep * nat option
   val msbyte : ImplWrapper.byte list -> ImplWrapper.byte
-  val mems : 'a s_ext -> mem list
+  val mems : 'a s_ext -> (mem_rep * nat option) list
   val tabs : 'a s_ext -> ((nat option) list * nat option) list
   val list_update : 'a list -> nat -> 'a -> 'a list
   val bot_pred : 'a pred
@@ -314,19 +321,29 @@ module WasmRef_Isa : sig
   val funcsa : 'a inst_ext -> nat list
   val globsa : 'a inst_ext -> nat list
   val types : 'a inst_ext -> tf list
-  val mem_append : mem -> ImplWrapper.byte list -> mem
-  val read_bytes : mem -> nat -> nat -> ImplWrapper.byte list
+  val app_rev_tr : 'a list -> 'a list -> 'a list
+  val mem_rep_append : mem_rep -> nat -> ImplWrapper.byte -> mem_rep
+  val mem_append :
+    mem_rep * nat option -> nat -> ImplWrapper.byte -> mem_rep * nat option
+  val mem_rep_read_bytes : mem_rep -> nat -> nat -> ImplWrapper.byte list
+  val read_bytes : mem_rep * nat option -> nat -> nat -> ImplWrapper.byte list
   val bits : v -> ImplWrapper.byte list
-  val load : mem -> nat -> nat -> nat -> (ImplWrapper.byte list) option
+  val load :
+    mem_rep * nat option -> nat -> nat -> nat -> (ImplWrapper.byte list) option
   val stab_cl_ind : unit s_ext -> nat -> nat -> nat option
   val stab : unit s_ext -> unit inst_ext -> nat -> nat option
-  val write_bytes : mem -> nat -> ImplWrapper.byte list -> mem
+  val mem_rep_write_bytes : mem_rep -> nat -> ImplWrapper.byte list -> mem_rep
+  val write_bytes :
+    mem_rep * nat option -> nat -> ImplWrapper.byte list -> mem_rep * nat option
   val sglob_ind : unit s_ext -> unit inst_ext -> nat -> nat
   val sglob : unit s_ext -> unit inst_ext -> nat -> unit global_ext
   val takefill : 'a -> nat -> 'a list -> 'a list
   val bytes_takefill :
     ImplWrapper.byte -> nat -> ImplWrapper.byte list -> ImplWrapper.byte list
-  val store : mem -> nat -> nat -> ImplWrapper.byte list -> nat -> mem option
+  val store :
+    mem_rep * nat option ->
+      nat ->
+        nat -> ImplWrapper.byte list -> nat -> (mem_rep * nat option) option
   val m_data : 'a m_ext -> unit module_data_ext list
   val m_elem : 'a m_ext -> unit module_elem_ext list
   val m_mems : 'a m_ext -> unit limit_t_ext list
@@ -336,7 +353,9 @@ module WasmRef_Isa : sig
   val m_globs : 'a m_ext -> unit module_glob_ext list
   val m_start : 'a m_ext -> nat option
   val m_types : 'a m_ext -> tf list
-  val mems_update : (mem list -> mem list) -> 'a s_ext -> 'a s_ext
+  val mems_update :
+    ((mem_rep * nat option) list -> (mem_rep * nat option) list) ->
+      'a s_ext -> 'a s_ext
   val tabs_update :
     (((nat option) list * nat option) list ->
       ((nat option) list * nat option) list) ->
@@ -357,11 +376,14 @@ module WasmRef_Isa : sig
   val supdate_glob_s : unit s_ext -> nat -> v -> unit s_ext
   val supdate_glob : unit s_ext -> unit inst_ext -> nat -> v -> unit s_ext
   val store_packed :
-    mem -> nat -> nat -> ImplWrapper.byte list -> nat -> mem option
+    mem_rep * nat option ->
+      nat ->
+        nat -> ImplWrapper.byte list -> nat -> (mem_rep * nat option) option
   val types_agree : t -> v -> bool
   val sign_extend : sx -> nat -> ImplWrapper.byte list -> ImplWrapper.byte list
   val load_packed :
-    sx -> mem -> nat -> nat -> nat -> nat -> (ImplWrapper.byte list) option
+    sx -> mem_rep * nat option ->
+            nat -> nat -> nat -> nat -> (ImplWrapper.byte list) option
   val app_testop_i : 'a wasm_int -> testop -> 'a -> bool
   val app_testop : testop -> v -> v
   val split_n : v list -> nat -> v list * v list
@@ -378,8 +400,7 @@ module WasmRef_Isa : sig
   val app_binop_f_v : binop_f -> v -> v -> v option
   val app_binop : binop -> v -> v -> v option
   val smem_ind : unit s_ext -> unit inst_ext -> nat option
-  val pred_option : ('a -> bool) -> 'a option -> bool
-  val mem_grow : mem -> nat -> mem option
+  val mem_grow : mem_rep * nat option -> nat -> (mem_rep * nat option) option
   val app_unop_i : 'a wasm_int -> unop_i -> 'a -> 'a
   val app_unop_i_v : unop_i -> v -> v
   val app_unop_f : 'a wasm_float -> unop_f -> 'a -> 'a
@@ -399,6 +420,7 @@ module WasmRef_Isa : sig
   val min : 'a ord -> 'a -> 'a -> 'a
   val funcs_update : (cl list -> cl list) -> 'a s_ext -> 'a s_ext
   val m_exports : 'a m_ext -> unit module_export_ext list
+  val m_imports : 'a m_ext -> unit module_import_ext list
   val limit_type_checker_p : unit limit_t_ext -> nat -> unit pred
   val limit_typing : unit limit_t_ext -> nat -> bool
   val alloc_Xs :
@@ -469,15 +491,6 @@ end = struct
 
 type nat = Nat of Z.t;;
 
-let rec integer_of_nat (Nat x) = x;;
-
-let rec equal_nata m n = Z.equal (integer_of_nat m) (integer_of_nat n);;
-
-type 'a equal = {equal : 'a -> 'a -> bool};;
-let equal _A = _A.equal;;
-
-let equal_nat = ({equal = equal_nata} : nat equal);;
-
 type num = One | Bit0 of num | Bit1 of num;;
 
 let one_nata : nat = Nat (Z.of_int 1);;
@@ -486,6 +499,8 @@ type 'a one = {one : 'a};;
 let one _A = _A.one;;
 
 let one_nat = ({one = one_nata} : nat one);;
+
+let rec integer_of_nat (Nat x) = x;;
 
 let rec times_nata m n = Nat (Z.mul (integer_of_nat m) (integer_of_nat n));;
 
@@ -526,6 +541,9 @@ let rec equal_ta x0 x1 = match x0, x1 with T_f32, T_f64 -> false
                    | T_f32, T_f32 -> true
                    | T_i64, T_i64 -> true
                    | T_i32, T_i32 -> true;;
+
+type 'a equal = {equal : 'a -> 'a -> bool};;
+let equal _A = _A.equal;;
 
 let equal_t = ({equal = equal_ta} : t equal);;
 
@@ -717,6 +735,8 @@ let rec equal_muta x0 x1 = match x0, x1 with T_immut, T_mut -> false
 
 let equal_mut = ({equal = equal_muta} : mut equal);;
 
+let equal_literal = ({equal = (fun a b -> ((a : string) = b))} : string equal);;
+
 let rec equal_unita u v = true;;
 
 let equal_unit = ({equal = equal_unita} : unit equal);;
@@ -773,14 +793,14 @@ type e = Basic of b_e | Trap | Invoke of nat | Label of nat * e list * e list |
 
 type 'a global_ext = Global_ext of mut * v * 'a;;
 
-type mem = Abs_mem of (ImplWrapper.byte list * nat option);;
+type mem_rep = Abs_mem_rep of ImplWrapper.byte list;;
 
 type cl = Func_native of unit inst_ext * tf * t list * b_e list |
   Func_host of tf * host
 and 'a s_ext =
   S_ext of
-    cl list * ((nat option) list * nat option) list * mem list *
-      unit global_ext list * 'a
+    cl list * ((nat option) list * nat option) list *
+      (mem_rep * nat option) list * unit global_ext list * 'a
 and host = Abs_host of (unit s_ext * v list -> (unit s_ext * v list) option);;
 
 type 'a seq = Empty | Insert of 'a * 'a pred | Join of 'a pred * 'a seq
@@ -844,11 +864,14 @@ let rec minus_nat
   m n = Nat (max ord_integer Z.zero
               (Z.sub (integer_of_nat m) (integer_of_nat n)));;
 
+let rec equal_nat m n = Z.equal (integer_of_nat m) (integer_of_nat n);;
+
 let zero_nat : nat = Nat Z.zero;;
 
 let rec nth
-  (x :: xs) n =
-    (if equal_nata n zero_nat then x else nth xs (minus_nat n one_nata));;
+  x0 n = match x0, n with [], n -> failwith "nth"
+    | x :: xs, n ->
+        (if equal_nat n zero_nat then x else nth xs (minus_nat n one_nata));;
 
 let rec fold f x1 s = match f, x1, s with f, x :: xs, s -> fold f xs (f x s)
                | f, [], s -> s;;
@@ -864,7 +887,7 @@ let rec zip xs ys = match xs, ys with x :: xs, y :: ys -> (x, y) :: zip xs ys
 let rec drop
   n x1 = match n, x1 with n, [] -> []
     | n, x :: xs ->
-        (if equal_nata n zero_nat then x :: xs
+        (if equal_nat n zero_nat then x :: xs
           else drop (minus_nat n one_nata) xs);;
 
 let rec null = function [] -> true
@@ -872,11 +895,13 @@ let rec null = function [] -> true
 
 let rec last (x :: xs) = (if null xs then x else last xs);;
 
-let rec take
-  n x1 = match n, x1 with n, [] -> []
-    | n, x :: xs ->
-        (if equal_nata n zero_nat then []
-          else x :: take (minus_nat n one_nata) xs);;
+let rec take_tr
+  n x1 acc_r = match n, x1, acc_r with n, [], acc_r -> rev acc_r
+    | n, x :: xs, acc_r ->
+        (if equal_nat n zero_nat then rev acc_r
+          else take_tr (minus_nat n one_nata) xs (x :: acc_r));;
+
+let rec take n xs = take_tr n xs [];;
 
 let rec foldl f a x2 = match f, a, x2 with f, a, [] -> a
                 | f, a, x :: xs -> foldl f (f a x) xs;;
@@ -890,6 +915,12 @@ let rec those
         (match x with None -> None
           | Some y -> map_option (fun a -> y :: a) (those xs));;
 
+let rec member _A x0 y = match x0, y with [], y -> false
+                    | x :: xs, y -> eq _A x y || member _A xs y;;
+
+let rec distinct _A = function [] -> true
+                      | x :: xs -> not (member _A xs x) && distinct _A xs;;
+
 let rec map f x1 = match f, x1 with f, [] -> []
               | f, x21 :: x22 -> f x21 :: map f x22;;
 
@@ -897,9 +928,12 @@ let rec nat_of_integer k = Nat (max ord_integer Z.zero k);;
 
 let ki64 : nat = nat_of_integer (Z.of_int 65536);;
 
-let rec replicate
-  n x = (if equal_nata n zero_nat then []
-          else x :: replicate (minus_nat n one_nata) x);;
+let rec replicate_tr
+  n x acc =
+    (if equal_nat n zero_nat then acc
+      else replicate_tr (minus_nat n one_nata) x (x :: acc));;
+
+let rec replicate n x = replicate_tr n x [];;
 
 let rec is_none = function Some x -> false
                   | None -> true;;
@@ -918,17 +952,12 @@ let rec map_filter
         (match f x with None -> map_filter f xs
           | Some y -> y :: map_filter f xs);;
 
-let rec eval _A (Seq f) = member _A (f ())
-and member _A xa0 x = match xa0, x with Empty, x -> false
-                | Insert (y, p), x -> eq _A x y || eval _A p x
-                | Join (p, xq), x -> eval _A p x || member _A xq x;;
+let rec eval _A (Seq f) = membera _A (f ())
+and membera _A xa0 x = match xa0, x with Empty, x -> false
+                 | Insert (y, p), x -> eq _A x y || eval _A p x
+                 | Join (p, xq), x -> eval _A p x || membera _A xq x;;
 
 let rec holds p = eval equal_unit p ();;
-
-let rec equal_option _A x0 x1 = match x0, x1 with None, Some x2 -> false
-                          | Some x2, None -> false
-                          | Some x2, Some y2 -> eq _A x2 y2
-                          | None, None -> true;;
 
 let rec apsnd f (x, y) = (x, f y);;
 
@@ -971,34 +1000,44 @@ let rec divide_nat
 
 let rec size_list x = gen_length zero_nat x;;
 
-let rec mem_length (Abs_mem xa) = (let (m, _) = xa in size_list m);;
+let rec mem_rep_length (Abs_mem_rep x) = size_list x;;
+
+let rec mem_length m = mem_rep_length (fst m);;
 
 let rec mem_size m = divide_nat (mem_length m) ki64;;
+
+let rec pred_option p x1 = match p, x1 with p, Some a -> p a
+                      | p, None -> true;;
 
 let rec l_min (Limit_t_ext (l_min, l_max, more)) = l_min;;
 
 let rec l_max (Limit_t_ext (l_min, l_max, more)) = l_max;;
 
-let rec mem_max (Abs_mem xa) = (let (_, max) = xa in max);;
-
-let rec mem_typing
-  m mt =
-    less_eq_nat (l_min mt) (mem_size m) &&
-      equal_option equal_nat (mem_max m) (l_max mt);;
+let rec limits_compat
+  lt1 lt2 =
+    less_eq_nat (l_min lt2) (l_min lt1) &&
+      pred_option
+        (fun lt2_the ->
+          (match l_max lt1 with None -> false
+            | Some lt1_the -> less_eq_nat lt1_the lt2_the))
+        (l_max lt2);;
 
 let rec snd (x1, x2) = x2;;
 
+let rec mem_max m = snd m;;
+
+let rec mem_typing
+  m mt = limits_compat (Limit_t_ext (mem_size m, mem_max m, ())) mt;;
+
 let rec tab_typing
-  t tt =
-    less_eq_nat (l_min tt) (size_list (fst t)) &&
-      equal_option equal_nat (snd t) (l_max tt);;
+  t tt = limits_compat (Limit_t_ext (size_list (fst t), snd t, ())) tt;;
 
 let rec bytes_replicate x = replicate x;;
 
-let rec mem_mk
-  x = Abs_mem
-        (bytes_replicate (times_nata (l_min x) ki64) ImplWrapper.zero_byte,
-          l_max x);;
+let rec mem_rep_mk
+  x = Abs_mem_rep (bytes_replicate (times_nata x ki64) ImplWrapper.zero_byte);;
+
+let rec mem_mk lim = (mem_rep_mk (l_min lim), l_max lim);;
 
 let rec msbyte bs = last bs;;
 
@@ -1009,7 +1048,7 @@ let rec tabs (S_ext (funcs, tabs, mems, globs, more)) = tabs;;
 let rec list_update
   x0 i y = match x0, i, y with [], i, y -> []
     | x :: xs, i, y ->
-        (if equal_nata i zero_nat then y :: xs
+        (if equal_nat i zero_nat then y :: xs
           else x :: list_update xs (minus_nat i one_nata) y);;
 
 let bot_pred : 'a pred = Seq (fun _ -> Empty);;
@@ -1191,10 +1230,10 @@ let rec type_update_select
               (nth ts (minus_nat (size_list ts) (nat_of_integer (Z.of_int 3))))
         then consume (Type ts) [TAny; TSome T_i32] else Bot)
     | TopType ts ->
-        (if equal_nata (size_list ts) zero_nat then TopType [TAny]
-          else (if equal_nata (minus_nat (size_list ts) one_nata) zero_nat
+        (if equal_nat (size_list ts) zero_nat then TopType [TAny]
+          else (if equal_nat (minus_nat (size_list ts) one_nata) zero_nat
                  then type_update (TopType ts) [TSome T_i32] (TopType [TAny])
-                 else (if equal_nata
+                 else (if equal_nat
                             (minus_nat (minus_nat (size_list ts) one_nata)
                               one_nata)
                             zero_nat
@@ -1224,7 +1263,7 @@ let rec is_int_t
         | T_f64 -> false);;
 
 let rec power _A
-  a n = (if equal_nata n zero_nat then one _A.one_power
+  a n = (if equal_nat n zero_nat then one _A.one_power
           else times _A.times_power a (power _A a (minus_nat n one_nata)));;
 
 let rec load_store_t_bounds
@@ -1362,7 +1401,7 @@ and check_single
           else Bot)
     | c, Cvtop (t1, Reinterpret, t2, sx), ts ->
         (if not (equal_ta t1 t2) &&
-              (equal_nata (t_length t1) (t_length t2) && is_none sx)
+              (equal_nat (t_length t1) (t_length t2) && is_none sx)
           then type_update ts [TSome t2] (Type [t1]) else Bot)
     | c, Unreachable, ts -> type_update ts [] (TopType [])
     | c, Nop, ts -> ts
@@ -1458,12 +1497,17 @@ let rec globsa (Inst_ext (types, funcs, tabs, mems, globs, more)) = globs;;
 
 let rec types (Inst_ext (types, funcs, tabs, mems, globs, more)) = types;;
 
-let rec mem_append
-  (Abs_mem xa) x =
-    Abs_mem ((let (m, max) = xa in (fun bs -> (m @ bs, max))) x);;
+let rec app_rev_tr x0 ys = match x0, ys with [], ys -> ys
+                     | x :: xs, ys -> app_rev_tr xs (x :: ys);;
 
-let rec read_bytes
-  (Abs_mem xa) = (let (m, _) = xa in (fun n l -> take l (drop n m)));;
+let rec mem_rep_append
+  (Abs_mem_rep m) n b = Abs_mem_rep (app_rev_tr (rev m) (replicate n b));;
+
+let rec mem_append m n b = (mem_rep_append (fst m) n b, snd m);;
+
+let rec mem_rep_read_bytes (Abs_mem_rep x) = (fun n l -> take l (drop n x));;
+
+let rec read_bytes m n l = mem_rep_read_bytes (fst m) n l;;
 
 let rec bits
   v = (match v with ConstInt32 a -> ImplWrapper.serialise_i32 a
@@ -1484,14 +1528,11 @@ let rec stab_cl_ind
 let rec stab
   s i j = (match tabsa i with [] -> None | k :: _ -> stab_cl_ind s k j);;
 
-let rec write_bytes
-  (Abs_mem xb) xa x =
-    Abs_mem
-      ((let (m, max) = xb in
-         (fun n bs ->
-           (take n m @ bs @ drop (plus_nat n (size_list bs)) m, max)))
-         xa
-        x);;
+let rec mem_rep_write_bytes
+  (Abs_mem_rep xb) xa x =
+    Abs_mem_rep (take xa xb @ x @ drop (plus_nat xa (size_list x)) xb);;
+
+let rec write_bytes m n bs = (mem_rep_write_bytes (fst m) n bs, snd m);;
 
 let rec sglob_ind s i j = nth (globsa i) j;;
 
@@ -1499,7 +1540,7 @@ let rec sglob s i j = nth (globs s) (sglob_ind s i j);;
 
 let rec takefill
   fill n xs =
-    (if equal_nata n zero_nat then []
+    (if equal_nat n zero_nat then []
       else (match xs with [] -> fill :: takefill fill (minus_nat n one_nata) xs
              | y :: ys -> y :: takefill fill (minus_nat n one_nata) ys));;
 
@@ -1692,7 +1733,7 @@ let rec app_testop
 let rec split_n
   x0 n = match x0, n with [], n -> ([], [])
     | v :: va, n ->
-        (if equal_nata n zero_nat then ([], v :: va)
+        (if equal_nat n zero_nat then ([], v :: va)
           else (let a = split_n va (minus_nat n one_nata) in
                 let (es, aa) = a in
                  (v :: es, aa)));;
@@ -1808,18 +1849,13 @@ let rec app_binop
 
 let rec smem_ind s i = (match memsa i with [] -> None | n :: _ -> Some n);;
 
-let rec pred_option p x1 = match p, x1 with p, Some a -> p a
-                      | p, None -> true;;
-
 let rec mem_grow
   m n = (let len = plus_nat (mem_size m) n in
           (if less_eq_nat len
                 (power power_nat (nat_of_integer (Z.of_int 2))
                   (nat_of_integer (Z.of_int 16))) &&
                 pred_option (less_eq_nat len) (mem_max m)
-            then Some (mem_append m
-                        (bytes_replicate (times_nata n ki64)
-                          ImplWrapper.zero_byte))
+            then Some (mem_append m (times_nata n ki64) ImplWrapper.zero_byte)
             else None));;
 
 let rec app_unop_i _A
@@ -2165,7 +2201,7 @@ else (sa, (f, RSCrash CError)))))
                                 (match ac
                                   with RSCrash c -> (sa, (fa, RSCrash c))
                                   | RSBreak (ad, bvs) ->
-                                    (if equal_nata ad zero_nat
+                                    (if equal_nat ad zero_nat
                                       then (if less_eq_nat ln (size_list bvs)
      then (sa, (fa, RSNormal (take ln bvs @ ves, les @ esa)))
      else (sa, (fa, RSCrash CError)))
@@ -2185,7 +2221,7 @@ else (sa, (f, RSCrash CError)))))
                             with (fsves, []) ->
                               (s, (f, RSNormal (rev fsves @ ves, esa)))
                             | (fsves, aa :: lista) ->
-                              (if equal_nata d zero_nat
+                              (if equal_nat d zero_nat
                                 then (s, (f, RSCrash CExhaustion))
                                 else (match
                                        run_step (minus_nat d one_nata)
@@ -2207,7 +2243,7 @@ else (sa, (f, RSCrash CError)))))
 
 let rec run_vs_es
   n d (s, (f, (ves, es))) =
-    (if equal_nata n zero_nat then (s, RCrash CExhaustion)
+    (if equal_nat n zero_nat then (s, RCrash CExhaustion)
       else (if es_is_trap es then (s, RTrap)
              else (if null es then (s, RValue (rev ves))
                     else (match run_step d (s, (f, (ves, es)))
@@ -2281,6 +2317,12 @@ let rec m_exports
       m_imports, m_exports, more))
     = m_exports;;
 
+let rec m_imports
+  (M_ext
+    (m_types, m_funcs, m_tabs, m_mems, m_globs, m_elem, m_data, m_start,
+      m_imports, m_exports, more))
+    = m_imports;;
+
 let rec limit_type_checker_p
   x xa =
     bind (single (x, xa))
@@ -2329,7 +2371,7 @@ let rec init_tab
      let tab_ea =
        take e_ind tab_e @ e_pay @ drop (plus_nat e_ind (size_list e_pay)) tab_e
        in
-      tabs_update (fun _ -> list_update (tabs s) e_ind (tab_ea, max)) s);;
+      tabs_update (fun _ -> list_update (tabs s) t_ind (tab_ea, max)) s);;
 
 let rec external_checker
   x xa xb =
@@ -2509,8 +2551,8 @@ let rec module_func_type_checker
         b_e_type_checker
           (return_update (fun _ -> Some tm)
             (label_update (fun _ -> [tm] @ label c)
-              (local_update (fun _ -> local c @ tn @ t_locs) c)))
-          b_es (Tf (tn, tm)));;
+              (local_update (fun _ -> tn @ t_locs) c)))
+          b_es (Tf ([], tm)));;
 
 let rec module_elem_type_checker
   c (Module_elem_ext (t, es, is, ())) =
@@ -2597,23 +2639,29 @@ let rec module_type_checker
              (tfs, ifts @ fts, igs @ gts, its @ ts, ims @ ms, [], [], None, ())
            in
          let ca = T_context_ext ([], [], igs, [], [], [], [], None, ()) in
-          (if list_all (module_func_type_checker c) fs &&
-                (list_all
-                   (fun t ->
-                     limit_typing t
-                       (power power_nat (nat_of_integer (Z.of_int 2))
-                         (nat_of_integer (Z.of_int 32))))
-                   ts &&
+          (if list_all (fun (Tf (_, tm)) -> less_eq_nat (size_list tm) one_nata)
+                tfs &&
+                (list_all (module_func_type_checker c) fs &&
                   (list_all
                      (fun t ->
                        limit_typing t
                          (power power_nat (nat_of_integer (Z.of_int 2))
-                           (nat_of_integer (Z.of_int 16))))
-                     ms &&
-                    (list_all (module_glob_type_checker ca) gs &&
-                      (list_all (module_elem_type_checker c) els &&
-                        (list_all (module_data_type_checker c) ds &&
-                          pred_option (module_start_typing c) i_opt)))))
+                           (nat_of_integer (Z.of_int 32))))
+                     ts &&
+                    (list_all
+                       (fun t ->
+                         limit_typing t
+                           (power power_nat (nat_of_integer (Z.of_int 2))
+                             (nat_of_integer (Z.of_int 16))))
+                       ms &&
+                      (list_all (module_glob_type_checker ca) gs &&
+                        (list_all (module_elem_type_checker c) els &&
+                          (list_all (module_data_type_checker c) ds &&
+                            (pred_option (module_start_typing c) i_opt &&
+                              (distinct equal_literal (map e_name exps) &&
+                                (less_eq_nat (size_list (its @ ts)) one_nata &&
+                                  less_eq_nat (size_list (ims @ ms))
+                                    one_nata)))))))))
             then (match
                    those (map (fun exp -> module_export_typer c (e_desc exp))
                            exps)
@@ -2713,7 +2761,8 @@ let rec interp_instantiate
                            (plus_nat (Nat (I32Wrapper.z_of_int e_offa))
                              (size_list (e_init e)))
                            (size_list
-                             (fst (nth (tabs s) (nth (tabsa inst) (e_tab e))))))
+                             (fst (nth (tabs sa)
+                                    (nth (tabsa inst) (e_tab e))))))
                        e_offs (m_elem m) &&
                        list_all2
                          (fun d_offa d ->
@@ -2721,7 +2770,7 @@ let rec interp_instantiate
                              (plus_nat (Nat (I32Wrapper.z_of_int d_offa))
                                (size_list (d_init d)))
                              (mem_length
-                               (nth (mems s) (nth (memsa inst) (d_data d)))))
+                               (nth (mems sa) (nth (memsa inst) (d_data d)))))
                          d_offs (m_data m)
                    then (let start = map_option (nth (funcsa inst)) (m_start m)
                            in

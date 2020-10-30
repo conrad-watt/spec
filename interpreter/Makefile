@@ -17,10 +17,11 @@ ZIP =		$(NAME).zip
 JSLIB =		wast.js
 WINMAKE =	winmake.bat
 
-DIRS =		util syntax binary text valid runtime exec script host main verified
+DIRS =		util syntax binary text valid runtime exec script host main verified verified/interface
 LIBS =		bigarray
-FLAGS = 	-cflags '-w +a-4-27-42-44-45 -warn-error +a-3'
-OCB =		ocamlbuild $(FLAGS) $(DIRS:%=-I %) $(LIBS:%=-libs %)
+PKGS =		zarith
+FLAGS = 	-cflags '-w +a-3-4-8-11-20-26-27-32-39-42-44-45 -warn-error +a-3'
+OCB =		ocamlbuild $(FLAGS) $(DIRS:%=-I %) $(LIBS:%=-libs %) $(PKGS:%=-pkgs %)
 JS =		# set to JS shell command to run JS tests
 
 

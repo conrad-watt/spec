@@ -1,6 +1,7 @@
 open Script
 open Source
-
+open WasmRef_Isa
+open LibAux
 
 (* Errors & Tracing *)
 
@@ -276,11 +277,37 @@ let print_results rs =
 
 module Map = Map.Make(String)
 
+
 let quote : script ref = ref []
 let scripts : script Map.t ref = ref Map.empty
 let modules : Ast.module_ Map.t ref = ref Map.empty
 let instances : Instance.module_inst Map.t ref = ref Map.empty
 let registry : Instance.module_inst Map.t ref = ref Map.empty
+
+let exports_isa : ((string * WasmRef_Isa.v_ext) list) Map_isa.t ref = ref Map_isa.empty
+
+let store_isa = ref (WasmRef_Isa.S_ext ([],[],[],[],()))
+let empty_frame_isa = WasmRef_Isa.(F_ext ([], Inst_ext ([], [], [], [], [], ()), ()))
+
+let configure_isa () =
+  let (s', spectest_exports) = Spectest_isa.install_spectest_isa !store_isa in
+  store_isa := s'; exports_isa := Map_isa.add "spectest" spectest_exports !exports_isa
+
+let m_name_isa x_opt =
+  match x_opt with
+  | None -> ""
+  | Some x ->x.it
+
+let find_export_isa m_str imp_str : WasmRef_Isa.v_ext =
+   trace ("(Isabelle) fetching export " ^ m_str ^ " " ^ imp_str);
+   try List.assoc imp_str (Map_isa.find m_str !exports_isa) with
+   | e -> trace ("(Isabelle) error finding export " ^ m_str ^ " " ^ imp_str); raise e
+
+let match_import_isa (m_imp : 'a WasmRef_Isa.module_import_ext) : WasmRef_Isa.v_ext =
+  match m_imp with
+  | WasmRef_Isa.Module_import_ext (m_str, imp_str, _, _) ->
+    try find_export_isa m_str imp_str with
+    | e -> trace ("(Isabelle) error matching import " ^ m_str ^ " " ^ imp_str); raise (Import.Unknown(no_region, "(Isabelle) unknown import"))
 
 let bind map x_opt y =
   let map' =
@@ -288,6 +315,13 @@ let bind map x_opt y =
     | None -> !map
     | Some x -> Map.add x.it y !map
   in map := Map.add "" y map'
+
+let bind_isa map x_opt y =
+  let map' =
+    match x_opt with
+    | None -> !map
+    | Some x -> Map_isa.add x.it y !map
+  in map := Map_isa.add "" y map'
 
 let lookup category map x_opt at =
   let key = match x_opt with None -> "" | Some x -> x.it in
@@ -319,26 +353,58 @@ let rec run_definition def : Ast.module_ =
     let def' = Parse.string_to_module s in
     run_definition def'
 
+let rec run_definition_isa def : (unit WasmRef_Isa.m_ext) =
+  Ast_convert.convert_module ((run_definition def).it)
+
+let invoke_isa (vs : Values.value list) (n : WasmRef_Isa.nat) : Values.value list =
+  let vs_isa = List.map Ast_convert.convert_value vs in
+  let ves_isa = List.map (fun v -> WasmRef_Isa.Basic (WasmRef_Isa.EConst v)) vs_isa in
+  let config = (!store_isa, (empty_frame_isa, ves_isa@[WasmRef_Isa.Invoke n])) in
+  let (s', res) = WasmRef_Isa.run config in
+  store_isa := s';
+  match res with
+  | WasmRef_Isa.RValue vs_isa' -> List.map Ast_convert.convert_value_rev vs_isa'
+  | WasmRef_Isa.RTrap -> raise (Eval.Trap (no_region, "(Isabelle) trap"))
+  | WasmRef_Isa.(RCrash CExhaustion)  -> raise (Eval.Exhaustion (no_region, "(Isabelle) call stack exhausted"))
+  | _ -> raise (Eval.Crash (no_region, "(Isabelle) wrong function index, or wrong number or types of arguments"))
+
+let global_load_isa (n : WasmRef_Isa.nat) : Values.value =
+  Ast_convert.convert_value_rev (WasmRef_Isa.g_val (WasmRef_Isa.nth (WasmRef_Isa.globs !store_isa) n))
+
 let run_action act : Values.value list =
   match act.it with
   | Invoke (x_opt, name, vs) ->
     trace ("Invoking function \"" ^ Ast.string_of_name name ^ "\"...");
-    let inst = lookup_instance x_opt act.at in
-    (match Instance.export inst name with
-    | Some (Instance.ExternFunc f) ->
-      Eval.invoke f (List.map (fun v -> v.it) vs)
-    | Some _ -> Assert.error act.at "export is not a function"
-    | None -> Assert.error act.at "undefined export"
-    )
+    if !Flags.use_isa then
+      (match find_export_isa (m_name_isa x_opt) (Ast.string_of_name name) with
+       | WasmRef_Isa.Ext_func n -> invoke_isa (List.map (fun v -> v.it) vs) n
+       | (v : WasmRef_Isa.v_ext) -> Assert.error act.at "(Isabelle) export is not a function"
+       | exception Not_found -> Assert.error act.at "(Isabelle) undefined export"
+      )
+    else
+      (let inst = lookup_instance x_opt act.at in
+      (match Instance.export inst name with
+      | Some (Instance.ExternFunc f) ->
+        Eval.invoke f (List.map (fun v -> v.it) vs)
+      | Some _ -> Assert.error act.at "export is not a function"
+      | None -> Assert.error act.at "undefined export"
+      ))
 
  | Get (x_opt, name) ->
     trace ("Getting global \"" ^ Ast.string_of_name name ^ "\"...");
-    let inst = lookup_instance x_opt act.at in
-    (match Instance.export inst name with
-    | Some (Instance.ExternGlobal gl) -> [Global.load gl]
-    | Some _ -> Assert.error act.at "export is not a global"
-    | None -> Assert.error act.at "undefined export"
-    )
+    if !Flags.use_isa then
+      (match find_export_isa (m_name_isa x_opt) (Ast.string_of_name name) with
+       | WasmRef_Isa.Ext_glob n -> [global_load_isa n]
+       | (v : WasmRef_Isa.v_ext) -> Assert.error act.at "(Isabelle) export is not a global"
+       | exception e -> Assert.error act.at "(Isabelle) wrong global index, or undefined export"
+      )
+    else
+      (let inst = lookup_instance x_opt act.at in
+      (match Instance.export inst name with
+      | Some (Instance.ExternGlobal gl) -> [Global.load gl]
+      | Some _ -> Assert.error act.at "export is not a global"
+      | None -> Assert.error act.at "undefined export"
+      ))
 
 let assert_result at got expect =
   let open Values in
@@ -366,13 +432,17 @@ let assert_result at got expect =
   end
 
 let assert_message at name msg re =
-  if
-    String.length msg < String.length re ||
-    String.sub msg 0 (String.length re) <> re
-  then begin
-    print_endline ("Result: \"" ^ msg ^ "\"");
-    print_endline ("Expect: \"" ^ re ^ "\"");
-    Assert.error at ("wrong " ^ name ^ " error")
+  if !Flags.use_isa then
+    trace ("(Isabelle) desire " ^ name ^ " error \"" ^ re ^ "\"")
+  else begin
+    if
+      String.length msg < String.length re ||
+      String.sub msg 0 (String.length re) <> re
+    then begin
+      print_endline ("Result: \"" ^ msg ^ "\"");
+      print_endline ("Expect: \"" ^ re ^ "\"");
+      Assert.error at ("wrong " ^ name ^ " error")
+    end
   end
 
 let run_assertion ass =
@@ -387,9 +457,14 @@ let run_assertion ass =
 
   | AssertInvalid (def, re) ->
     trace "Asserting invalid...";
+    let m = run_definition def in
     (match
-      let m = run_definition def in
-      Valid.check_module m
+      (if !Flags.use_isa then
+        let m_isa = Ast_convert.convert_module m.it in
+        Valid.check_module_isa m_isa
+      else
+        Valid.check_module m
+      )
     with
     | exception Valid.Invalid (_, msg) ->
       assert_message ass.at "validation" msg re
@@ -399,27 +474,59 @@ let run_assertion ass =
   | AssertUnlinkable (def, re) ->
     trace "Asserting unlinkable...";
     let m = run_definition def in
-    if not !Flags.unchecked then Valid.check_module m;
-    (match
-      let imports = Import.link m in
-      ignore (Eval.init m imports)
-    with
-    | exception (Import.Unknown (_, msg) | Eval.Link (_, msg)) ->
-      assert_message ass.at "linking" msg re
-    | _ -> Assert.error ass.at "expected linking error"
+    (if !Flags.use_isa then
+       try
+         (let m_isa = Ast_convert.convert_module m.it in
+         if not !Flags.unchecked then Valid.check_module_isa m_isa;
+         let imports_isa = List.map match_import_isa (WasmRef_Isa.m_imports m_isa) in
+         (match WasmRef_Isa.interp_instantiate !store_isa m_isa imports_isa with
+          | None -> assert_message ass.at "linking" "" re
+          | _ -> Assert.error ass.at "expected linking error"
+         ))
+       with
+       | (Import.Unknown (_, msg) | Eval.Link (_, msg)) ->
+         assert_message ass.at "linking" msg re
+       | _ -> Assert.error ass.at "expected linking error"
+     else
+       (if not !Flags.unchecked then Valid.check_module m;
+       (match
+         let imports = Import.link m in
+         ignore (Eval.init m imports)
+       with
+       | exception (Import.Unknown (_, msg) | Eval.Link (_, msg)) ->
+         assert_message ass.at "linking" msg re
+       | _ -> Assert.error ass.at "expected linking error"
+       ))
     )
 
   | AssertUninstantiable (def, re) ->
-    trace "Asserting trap...";
+    trace "Asserting uninstantiable...";
     let m = run_definition def in
-    if not !Flags.unchecked then Valid.check_module m;
-    (match
-      let imports = Import.link m in
-      ignore (Eval.init m imports)
-    with
-    | exception Eval.Trap (_, msg) ->
-      assert_message ass.at "instantiation" msg re
-    | _ -> Assert.error ass.at "expected instantiation error"
+    (if !Flags.use_isa then
+       try
+         (let m_isa = Ast_convert.convert_module m.it in
+         if not !Flags.unchecked then Valid.check_module_isa m_isa;
+         let imports_isa = List.map match_import_isa (WasmRef_Isa.m_imports m_isa) in
+         (match WasmRef_Isa.interp_instantiate !store_isa m_isa imports_isa with
+          | None -> assert_message ass.at "instantiation" "" re
+          | Some ((s', (inst, exps)), start_opt) ->
+              store_isa := s';
+              Option.iter (fun x -> ignore (invoke_isa [] x)) start_opt;
+         ))
+       with
+       | (Eval.Trap (_, msg)) ->
+         assert_message ass.at "instantiation" msg re
+       | _ -> Assert.error ass.at "expected instantiation error"
+     else
+       (if not !Flags.unchecked then Valid.check_module m;
+       (match
+         let imports = Import.link m in
+         ignore (Eval.init m imports)
+       with
+       | exception (Eval.Trap (_, msg)) ->
+         assert_message ass.at "instantiation" msg re
+       | _ -> Assert.error ass.at "expected instantiation error"
+       ))
     )
 
   | AssertReturn (act, rs) ->
@@ -448,30 +555,56 @@ let rec run_command cmd =
   | Module (x_opt, def) ->
     quote := cmd :: !quote;
     let m = run_definition def in
-    if not !Flags.unchecked then begin
-      trace "Checking...";
-      Valid.check_module m;
-      if !Flags.print_sig then begin
-        trace "Signature:";
-        print_module x_opt m
-      end
-    end;
     bind scripts x_opt [cmd];
     bind modules x_opt m;
-    if not !Flags.dry then begin
-      trace "Initializing...";
-      let imports = Import.link m in
-      let inst = Eval.init m imports in
-      bind instances x_opt inst
-    end
+    (if !Flags.use_isa then
+       try
+         (let m_isa = Ast_convert.convert_module m.it in
+          if not !Flags.unchecked then begin
+            trace "Checking...";
+            Valid.check_module_isa m_isa;
+            if !Flags.print_sig then failwith "NYI"
+          end;
+         let imports_isa = List.map match_import_isa (WasmRef_Isa.m_imports m_isa) in
+         (match WasmRef_Isa.interp_instantiate !store_isa m_isa imports_isa with
+          | Some ((s', (inst, exps)), start_opt) ->
+              store_isa := s';
+              Option.iter (fun x -> ignore (invoke_isa [] x)) start_opt;
+              if not !Flags.dry then begin
+                trace "Initializing...";
+                bind_isa exports_isa x_opt (List.map (fun x -> WasmRef_Isa.(e_name x, e_desc x)) exps)
+              end
+          | None -> failwith "(Isabelle) instantiation failure"
+         ))
+       with
+       | e -> trace ("(Isabelle) module processing error at " ^ (string_of_region cmd.at)); raise e
+    else
+      (if not !Flags.unchecked then begin
+        trace "Checking...";
+        Valid.check_module m;
+        if !Flags.print_sig then begin
+          trace "Signature:";
+          print_module x_opt m
+        end
+      end;
+      if not !Flags.dry then begin
+        trace "Initializing...";
+        let imports = Import.link m in
+        let inst = Eval.init m imports in
+        bind instances x_opt inst
+      end))
 
   | Register (name, x_opt) ->
     quote := cmd :: !quote;
     if not !Flags.dry then begin
       trace ("Registering module \"" ^ Ast.string_of_name name ^ "\"...");
-      let inst = lookup_instance x_opt cmd.at in
-      registry := Map.add (Utf8.encode name) inst !registry;
-      Import.register name (lookup_registry (Utf8.encode name))
+      (if !Flags.use_isa then
+        (let exps = Map_isa.find (m_name_isa x_opt) !exports_isa in
+        exports_isa := Map_isa.add (Ast.string_of_name name) exps !exports_isa)
+      else
+        (let inst = lookup_instance x_opt cmd.at in
+        registry := Map.add (Utf8.encode name) inst !registry;
+        Import.register name (lookup_registry (Utf8.encode name))))
     end
 
   | Action act ->

@@ -7,3 +7,5 @@ val trace : string -> unit
 val run_string : string -> bool
 val run_file : string -> bool
 val run_stdin : unit -> unit
+
+val configure_isa : unit -> unit
