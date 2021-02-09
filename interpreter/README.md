@@ -1,3 +1,13 @@
+#  Verified executable interpreter
+
+This is a fork of the official reference interpreter which can optionally execute the provided Wasm program using my verified Isabelle interpreter. It is built as normal. A new command-line flag has been added, `use_isa` which will use the extracted Isabelle definitions when enabled.
+
+The extracted verified code, and harness, can be found [here](https://github.com/conrad-watt/spec/tree/conrad-interpreter/interpreter/verified).
+
+Original readme follows...
+
+-----
+
 # WebAssembly Reference Interpreter
 
 This repository implements a interpreter for WebAssembly. It is written for clarity and simplicity, _not_ speed. It is intended as a playground for trying out ideas and a device for nailing down the exact semantics, and as a proxy for the (yet to be produced) formal specification of WebAssembly. For that purpose, the code is written in a fairly declarative, "speccy" way.
