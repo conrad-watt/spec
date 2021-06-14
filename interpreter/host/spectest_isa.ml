@@ -8,11 +8,12 @@ let print_value' s1 s2 =
   Printf.printf "%s : %s\n" s1 s2
 
 let print_value (v : v) =
-  match v with
-  | ConstInt32 c -> print_value' (I32.to_string_s c) "i32"
-  | ConstInt64 c -> print_value' (I64.to_string_s c) "i64"
-  | ConstFloat32 c -> print_value' (F32.to_string c) "f32"
-  | ConstFloat64 c -> print_value' (F64.to_string c) "f64"
+  let v' = Ast_convert.convert_value_rev v in
+  match v' with
+  | Values.I32 c -> print_value' (I32.to_string_s c) "i32"
+  | Values.I64 c -> print_value' (I64.to_string_s c) "i64"
+  | Values.F32 c -> print_value' (F32.to_string c) "f32"
+  | Values.F64 c -> print_value' (F64.to_string c) "f64"
 
 let print' : host =
   Abs_host (fun (s, vs) -> List.iter print_value vs; flush_all (); Some (s, []))
@@ -31,11 +32,11 @@ let spectest_tab_imports =
  ]
 
 let spectest_mem_imports =
- [("memory", (Abs_mem_rep (Lib.List.make 65536 (Char.chr 0)), Some (Nat (Z.of_int 2))))
+ [("memory", (Abs_mem_rep (Lib.List.make 65536 (zero_byte)), Some (Nat (Z.of_int 2))))
  ]
 
 let spectest_glob_imports =
- [("global_i32", Global_ext (T_immut, ConstInt32 666l, ()));
+ [("global_i32", Global_ext (T_immut, ConstInt32 (ocaml_int32_to_isabelle_int32 666l), ()));
   ("global_f32", Global_ext (T_immut, ConstFloat32 (F32.of_float 666.6), ()));
   ("global_f64", Global_ext (T_immut, ConstFloat64 (F64.of_float 666.6), ()))
  ]

@@ -11,19 +11,20 @@ let convert_t = function
 
 let convert_vltype vl_type = List.map convert_t vl_type
 
-let ocaml_int_to_nat n = Nat (Z.of_int n)
-let ocaml_int32_to_nat n = Nat (LibAux.z_of_uint32 n)
+let ocaml_int_to_nat n = nat_of_integer (Z.of_int n)
+let ocaml_int32_to_nat n = nat_of_integer (LibAux.z_of_uint32 n)
+
 let var_to_nat n = ocaml_int32_to_nat n.it
 
 let convert_value = function
-	| I32 c -> ConstInt32 c
-	| I64 c -> ConstInt64 c
+	| I32 c -> ConstInt32 (ocaml_int32_to_isabelle_int32 c)
+	| I64 c -> ConstInt64 (ocaml_int64_to_isabelle_int64 c)
 	| F32 c -> ConstFloat32 c
 	| F64 c -> ConstFloat64 c
 
 let convert_value_rev = function
-	| ConstInt32 c -> I32 c
-	| ConstInt64 c -> I64 c
+	| ConstInt32 c -> I32 (isabelle_int32_to_ocaml_int32 c)
+	| ConstInt64 c -> I64 (isabelle_int64_to_ocaml_int64 c)
 	| ConstFloat32 c -> F32 c
 	| ConstFloat64 c -> F64 c
 
@@ -218,7 +219,7 @@ let convert_limit lim =
     Types.min;
     Types.max;
   } = lim in
-  Limit_t_ext (ocaml_int32_to_nat min, Option.map ocaml_int32_to_nat max, ())
+  Limit_t_ext (ocaml_int32_to_nat min, Lib.Option.map ocaml_int32_to_nat max, ())
 
 let convert_tt tt =
   match tt with
@@ -260,7 +261,7 @@ let convert_data' data =
     Ast.offset;
     Ast.init;
   } = data in
-  Module_data_ext (var_to_nat index, convert_instrs offset.it, LibAux.string_explode init, ())
+  Module_data_ext (var_to_nat index, convert_instrs offset.it, List.map ocaml_char_to_isabelle_byte (LibAux.string_explode init), ())
 
 let convert_data data = convert_data' (data.it)
 
@@ -312,7 +313,7 @@ let convert_module (modul : Ast.module_') : unit m_ext =
   let m_globs = List.map convert_glob globals in
   let m_elem = List.map convert_elem elems in
   let m_data = List.map convert_data data in
-  let m_start = Option.map var_to_nat start in
+  let m_start = Lib.Option.map var_to_nat start in
   let m_imports = List.map convert_import imports in
   let m_exports = List.map convert_export exports in
   M_ext (m_types, m_funcs, m_tabs,m_mems, m_globs, m_elem, m_data, m_start, m_imports, m_exports, ())

@@ -511,7 +511,7 @@ let run_assertion ass =
           | None -> assert_message ass.at "instantiation" "" re
           | Some ((s', (inst, exps)), start_opt) ->
               store_isa := s';
-              Option.iter (fun x -> ignore (invoke_isa [] x)) start_opt;
+              Lib.Option.app (fun x -> ignore (invoke_isa [] x)) start_opt;
          ))
        with
        | (Eval.Trap (_, msg)) ->
@@ -569,7 +569,7 @@ let rec run_command cmd =
          (match WasmRef_Isa.interp_instantiate !store_isa m_isa imports_isa with
           | Some ((s', (inst, exps)), start_opt) ->
               store_isa := s';
-              Option.iter (fun x -> ignore (invoke_isa [] x)) start_opt;
+              Lib.Option.app (fun x -> ignore (invoke_isa [] x)) start_opt;
               if not !Flags.dry then begin
                 trace "Initializing...";
                 bind_isa exports_isa x_opt (List.map (fun x -> WasmRef_Isa.(e_name x, e_desc x)) exps)

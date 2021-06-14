@@ -12,9 +12,9 @@ let serialise_f32 (f : F32Wrapper.t) = LibAux.string_explode (Z.to_bits (LibAux.
 
 let serialise_f64 (f : F64Wrapper.t) = LibAux.string_explode (Z.to_bits (LibAux.z_of_float64rep f))
 
-let deserialise_i32 (bs : byte list) = I32.of_string (Z.to_string (Z.of_bits (LibAux.string_implode bs)))
+let deserialise_i32 (bs : byte list) = LibAux.uint32_of_z (Z.of_bits (LibAux.string_implode bs))
 
-let deserialise_i64 bs = I64.of_string (Z.to_string (Z.of_bits (LibAux.string_implode bs)))
+let deserialise_i64 bs = LibAux.uint64_of_z (Z.of_bits (LibAux.string_implode bs))
 
 let deserialise_f32 bs = F32.of_bits (deserialise_i32 bs)
 
