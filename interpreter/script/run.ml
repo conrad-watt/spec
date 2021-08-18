@@ -358,15 +358,17 @@ let rec run_definition_isa def : (unit WasmRef_Isa.m_ext) =
 
 let invoke_isa (vs : Values.value list) (n : WasmRef_Isa.nat) : Values.value list =
   let vs_isa = List.map Ast_convert.convert_value vs in
-  let ves_isa = List.map (fun v -> WasmRef_Isa.Basic (WasmRef_Isa.EConst v)) vs_isa in
-  let config = (!store_isa, (empty_frame_isa, ves_isa@[WasmRef_Isa.Invoke n])) in
-  let (s', res) = WasmRef_Isa.run config in
+  let config = (!store_isa, (vs_isa, n)) in
+  let (s', res) = WasmRef_Isa.run_invoke config in
   store_isa := s';
   match res with
   | WasmRef_Isa.RValue vs_isa' -> List.map Ast_convert.convert_value_rev vs_isa'
-  | WasmRef_Isa.RTrap -> raise (Eval.Trap (no_region, "(Isabelle) trap"))
-  | WasmRef_Isa.(RCrash CExhaustion)  -> raise (Eval.Exhaustion (no_region, "(Isabelle) call stack exhausted"))
+  | WasmRef_Isa.RTrap str -> raise (Eval.Trap (no_region, "(Isabelle) trap: " ^ str))
+  | WasmRef_Isa.RCrash str -> raise (Eval.Crash (no_region, "(Isabelle) error: " ^ str))
+ 
+(* | WasmRef_Isa.(RCrash CExhaustion)  -> raise (Eval.Exhaustion (no_region, "(Isabelle) call stack exhausted"))
   | _ -> raise (Eval.Crash (no_region, "(Isabelle) wrong function index, or wrong number or types of arguments"))
+*)
 
 let global_load_isa (n : WasmRef_Isa.nat) : Values.value =
   Ast_convert.convert_value_rev (WasmRef_Isa.g_val (WasmRef_Isa.nth (WasmRef_Isa.globs !store_isa) n))
