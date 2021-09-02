@@ -1,4 +1,4 @@
-open WasmRef_Isa.WasmRef_Isa
+open WasmRef_Isa_m.WasmRef_Isa
 open Source
 open Types
 open Values

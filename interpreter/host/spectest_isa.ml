@@ -2,7 +2,7 @@
  * Simple collection of functions useful for writing test cases.
  *)
 
-open WasmRef_Isa.WasmRef_Isa
+open WasmRef_Isa_m.WasmRef_Isa
 
 let print_value' s1 s2 =
   Printf.printf "%s : %s\n" s1 s2
@@ -16,7 +16,7 @@ let print_value (v : v) =
   | Values.F64 c -> print_value' (F64.to_string c) "f64"
 
 let print' : host =
-  Abs_host (fun (s, vs) -> List.iter print_value vs; flush_all (); Some (s, []))
+  Abs_host_m (fun (s, vs) -> fun () -> List.iter print_value vs; flush_all (); Some (s, []))
 
 let spectest_func_imports =
  [("print", Func_host (Tf ([],[]), print'));
@@ -28,11 +28,11 @@ let spectest_func_imports =
  ]
 
 let spectest_tab_imports =
- [("table", (Lib.List.make 10 None, Some (Nat (Z.of_int 20))))
+ [("table", (Array.make 10 None, Some (Nat (Z.of_int 20))))
  ]
 
 let spectest_mem_imports =
- [("memory", (Abs_mem_rep (Lib.List.make 65536 (zero_byte)), Some (Nat (Z.of_int 2))))
+ [("memory", ((Array.make 65536 (zero_byte)), Some (Nat (Z.of_int 2))))
  ]
 
 let spectest_glob_imports =
@@ -41,41 +41,41 @@ let spectest_glob_imports =
   ("global_f64", Global_ext (T_immut, ConstFloat64 (F64.of_float 666.6), ()))
  ]
 
-let install_spectest_funcs (s : unit s_ext) : (unit s_ext * ((string * v_ext) list)) =
+let install_spectest_funcs (s : unit s_m_ext) : (unit s_m_ext * ((string * v_ext) list)) =
   match s with
-  | (S_ext (cls, tabs, mems, globs, _)) ->
-    let cl_n = List.length cls in
+  | (S_m_ext (cls, tabs, mems, globs, _)) ->
+    let cl_n = Array.length cls in
     let (spectest_names, spectest_cls) = List.split spectest_func_imports in
     let exp_list = List.mapi (fun i name -> (name, Ext_func (Nat (Z.of_int i)))) spectest_names in
-    (S_ext (cls@spectest_cls, tabs, mems, globs, ()), exp_list)
+    (S_m_ext (Array.append cls (Array.of_list spectest_cls), tabs, mems, globs, ()), exp_list)
 
-let install_spectest_tabs (s : unit s_ext) : (unit s_ext * ((string * v_ext) list)) =
+let install_spectest_tabs (s : unit s_m_ext) : (unit s_m_ext * ((string * v_ext) list)) =
   match s with
-  | (S_ext (cls, tabs, mems, globs, _)) ->
-    let tab_n = List.length tabs in
+  | (S_m_ext (cls, tabs, mems, globs, _)) ->
+    let tab_n = Array.length tabs in
     let (spectest_names, spectest_tabs) = List.split spectest_tab_imports in
     let exp_list = List.mapi (fun i name -> (name, Ext_tab (Nat (Z.of_int i)))) spectest_names in
-    (S_ext (cls, tabs@spectest_tabs, mems, globs, ()), exp_list)
+    (S_m_ext (cls, Array.append tabs (Array.of_list spectest_tabs), mems, globs, ()), exp_list)
 
-let install_spectest_mems (s : unit s_ext) : (unit s_ext * ((string * v_ext) list)) =
+let install_spectest_mems (s : unit s_m_ext) : (unit s_m_ext * ((string * v_ext) list)) =
   match s with
-  | (S_ext (cls, tabs, mems, globs, _)) ->
-    let mem_n = List.length mems in
+  | (S_m_ext (cls, tabs, mems, globs, _)) ->
+    let mem_n = Array.length mems in
     let (spectest_names, spectest_mems) = List.split spectest_mem_imports in
     let exp_list = List.mapi (fun i name -> (name, Ext_mem (Nat (Z.of_int i)))) spectest_names in
-    (S_ext (cls, tabs, mems@spectest_mems, globs, ()), exp_list)
+    (S_m_ext (cls, tabs, Array.append mems (Array.of_list spectest_mems), globs, ()), exp_list)
 
-let install_spectest_globs (s : unit s_ext) : (unit s_ext * ((string * v_ext) list)) =
+let install_spectest_globs (s : unit s_m_ext) : (unit s_m_ext * ((string * v_ext) list)) =
   match s with
-  | (S_ext (cls, tabs, mems, globs, _)) ->
-    let glob_n = List.length globs in
+  | (S_m_ext (cls, tabs, mems, globs, _)) ->
+    let glob_n = Array.length globs in
     let (spectest_names, spectest_globs) = List.split spectest_glob_imports in
     let exp_list = List.mapi (fun i name -> (name, Ext_glob (Nat (Z.of_int i)))) spectest_names in
-    (S_ext (cls, tabs, mems, globs@spectest_globs, ()), exp_list)
+    (S_m_ext (cls, tabs, mems, Array.append globs (Array.of_list spectest_globs), ()), exp_list)
 
-let install_spectest_isa (s : unit s_ext) : (unit s_ext * ((string * v_ext) list)) =
+let install_spectest_isa (s : unit s_m_ext) : (unit s_m_ext * ((string * v_ext) list)) =
   match s with
-  | S_ext (cls, tabs, mems, globs, _) ->
+  | S_m_ext (cls, tabs, mems, globs, _) ->
     let (s', exp_funcs) = install_spectest_funcs s in
     let (s'', exp_tabs) = install_spectest_tabs s' in
     let (s''', exp_mems) = install_spectest_mems s'' in

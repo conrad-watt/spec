@@ -1,6 +1,6 @@
 open Script
 open Source
-open WasmRef_Isa
+open WasmRef_Isa_m
 open LibAux
 
 (* Errors & Tracing *)
@@ -286,8 +286,7 @@ let registry : Instance.module_inst Map.t ref = ref Map.empty
 
 let exports_isa : ((string * WasmRef_Isa.v_ext) list) Map_isa.t ref = ref Map_isa.empty
 
-let store_isa = ref (WasmRef_Isa.S_ext ([],[],[],[],()))
-let empty_frame_isa = WasmRef_Isa.(F_ext ([], Inst_ext ([], [], [], [], [], ()), ()))
+let store_isa = ref (WasmRef_Isa.make_empty_store_m ())
 
 let configure_isa () =
   let (s', spectest_exports) = Spectest_isa.install_spectest_isa !store_isa in
@@ -359,7 +358,7 @@ let rec run_definition_isa def : (unit WasmRef_Isa.m_ext) =
 let invoke_isa (vs : Values.value list) (n : WasmRef_Isa.nat) : Values.value list =
   let vs_isa = List.map Ast_convert.convert_value vs in
   let config = (!store_isa, (vs_isa, n)) in
-  let (s', res) = WasmRef_Isa.run_invoke config in
+  let (s', res) = WasmRef_Isa.run_invoke_m config () in
   store_isa := s';
   match res with
   | WasmRef_Isa.RValue vs_isa' -> List.map Ast_convert.convert_value_rev vs_isa'
@@ -373,7 +372,7 @@ let invoke_isa (vs : Values.value list) (n : WasmRef_Isa.nat) : Values.value lis
 *)
 
 let global_load_isa (n : WasmRef_Isa.nat) : Values.value =
-  Ast_convert.convert_value_rev (WasmRef_Isa.g_val (WasmRef_Isa.nth (WasmRef_Isa.globs !store_isa) n))
+  Ast_convert.convert_value_rev (WasmRef_Isa.g_val (Array.get (WasmRef_Isa.globs !store_isa) (Z.to_int (WasmRef_Isa.integer_of_nat n))))
 
 let run_action act : Values.value list =
   match act.it with
@@ -483,7 +482,7 @@ let run_assertion ass =
          (let m_isa = Ast_convert.convert_module m.it in
          if not !Flags.unchecked then Valid.check_module_isa m_isa;
          let imports_isa = List.map match_import_isa (WasmRef_Isa.m_imports m_isa) in
-         (match WasmRef_Isa.interp_instantiate !store_isa m_isa imports_isa with
+         (match WasmRef_Isa.interp_instantiate_m !store_isa m_isa imports_isa () with
           | None -> assert_message ass.at "linking" "" re
           | _ -> Assert.error ass.at "expected linking error"
          ))
@@ -511,7 +510,7 @@ let run_assertion ass =
          (let m_isa = Ast_convert.convert_module m.it in
          if not !Flags.unchecked then Valid.check_module_isa m_isa;
          let imports_isa = List.map match_import_isa (WasmRef_Isa.m_imports m_isa) in
-         (match WasmRef_Isa.interp_instantiate !store_isa m_isa imports_isa with
+         (match WasmRef_Isa.interp_instantiate_m !store_isa m_isa imports_isa () with
           | None -> assert_message ass.at "instantiation" "" re
           | Some ((s', (inst, exps)), start_opt) ->
               store_isa := s';
@@ -570,7 +569,7 @@ let rec run_command cmd =
             if !Flags.print_sig then failwith "NYI"
           end;
          let imports_isa = List.map match_import_isa (WasmRef_Isa.m_imports m_isa) in
-         (match WasmRef_Isa.interp_instantiate !store_isa m_isa imports_isa with
+         (match WasmRef_Isa.interp_instantiate_m !store_isa m_isa imports_isa () with
           | Some ((s', (inst, exps)), start_opt) ->
               store_isa := s';
               Lib.Option.app (fun x -> ignore (invoke_isa [] x)) start_opt;
