@@ -32,7 +32,7 @@ let spectest_tab_imports =
  ]
 
 let spectest_mem_imports =
- [("memory", ((Array.make 65536 (zero_byte)), Some (Nat (Z.of_int 2))))
+ [("memory", (new_zeroed_byte_array (Nat (Z.of_int 65536)) (), Some (Nat (Z.of_int 2))))
  ]
 
 let spectest_glob_imports =
