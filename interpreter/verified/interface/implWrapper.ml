@@ -4,9 +4,9 @@ let msb_byte b = (b >= (Char.chr 128))
 let zero_byte = Char.chr 0
 let negone_byte = Char.chr 255
 
-let serialise_i32 (i : I32Wrapper.t) = LibAux.string_explode (Z.to_bits (LibAux.z_of_uint32 i))
+let serialise_i32 (i : I32.t) = LibAux.string_explode (Z.to_bits (LibAux.z_of_uint32 i))
 
-let serialise_i64 (i : I64Wrapper.t) = LibAux.string_explode (Z.to_bits (LibAux.z_of_uint64 i))
+let serialise_i64 (i : I64.t) = LibAux.string_explode (Z.to_bits (LibAux.z_of_uint64 i))
 
 let serialise_f32 (f : F32Wrapper.t) = LibAux.string_explode (Z.to_bits (LibAux.z_of_float32rep f))
 
