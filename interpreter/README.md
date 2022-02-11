@@ -4,6 +4,16 @@ This is a fork of the official reference interpreter which can optionally execut
 
 The extracted verified code, and harness, can be found [here](https://github.com/conrad-watt/spec/tree/conrad-new-interpreter/interpreter/verified).
 
+This interpreter currently implements the Wasm MVP. Features supported by the base interpreter but not by the formal model:
+- nontrapping-float-to-int
+- sign-extension-ops
+- multi-value
+- bulk instructions
+- reference types
+- SIMD
+
+When the interpreter is run with `-isa`, executing a module containing one of these features will throw `PostMVP` (see `ast_convert.ml`).
+
 Original readme follows...
 
 -----
