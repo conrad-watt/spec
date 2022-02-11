@@ -139,6 +139,7 @@ let t_reinterpret = function
 	| T_i64 -> T_f64
 	| T_f32 -> T_i32
 	| T_f64 -> T_i64
+        | _ -> raise PostMVP
 
 let convert_int_convertop t1 = function
 	| Ast.IntOp.ExtendSI32 -> Cvtop (t1, Convert, T_i32, Some S)
@@ -149,6 +150,7 @@ let convert_int_convertop t1 = function
 	| Ast.IntOp.TruncSF64 -> Cvtop (t1, Convert, T_f64, Some S)
 	| Ast.IntOp.TruncUF64 -> Cvtop (t1, Convert, T_f64, Some U)
 	| Ast.IntOp.ReinterpretFloat -> Cvtop (t1, Reinterpret, t_reinterpret t1, None)
+        | _ -> raise PostMVP
 
 let convert_float_convertop t1 = function
   | Ast.FloatOp.ConvertSI32 -> Cvtop (t1, Convert, T_i32, Some S)
@@ -204,7 +206,7 @@ let rec convert_instr instr =
 	| Ast.BrTable (ns, n) -> Br_table (List.map var_to_nat ns, var_to_nat n)
 	| Ast.Return -> Return
 	| Ast.Call n -> Call (var_to_nat n)
-	| Ast.CallIndirect(n, y) -> (if (y.it)=0l then Call_indirect (var_to_nat n) else raise PostMVP)
+	| Ast.CallIndirect(n, y) -> (if (n.it)=0l then Call_indirect (var_to_nat y) else raise PostMVP)
 	| Ast.Drop -> Drop
 	| Ast.Select None -> Select
 	| Ast.LocalGet n -> Get_local (var_to_nat n)
