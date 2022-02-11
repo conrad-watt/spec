@@ -4,16 +4,15 @@
 
 open WasmRef_Isa_m.WasmRef_Isa
 
-let print_value' s1 s2 =
-  Printf.printf "%s : %s\n" s1 s2
+let print_value' v =
+  Printf.printf "%s : %s\n"
+    (Values.string_of_value v)
+    (Types.string_of_value_type (Values.type_of_value v))
+
 
 let print_value (v : v) =
   let v' = Ast_convert.convert_value_rev v in
-  match v' with
-  | Values.I32 c -> print_value' (I32.to_string_s c) "i32"
-  | Values.I64 c -> print_value' (I64.to_string_s c) "i64"
-  | Values.F32 c -> print_value' (F32.to_string c) "f32"
-  | Values.F64 c -> print_value' (F64.to_string c) "f64"
+  print_value' v'
 
 let print' : host =
   Abs_host_m (fun (s, vs) -> fun () -> List.iter print_value vs; flush_all (); Some (s, []))
@@ -21,10 +20,11 @@ let print' : host =
 let spectest_func_imports =
  [("print", Func_host (Tf ([],[]), print'));
   ("print_i32", Func_host (Tf ([T_i32],[]), print'));
-  ("print_i32_f32", Func_host (Tf ([T_i32; T_f32],[]), print'));
-  ("print_f64_f64", Func_host (Tf ([T_f64; T_f64],[]), print'));
+  ("print_i64", Func_host (Tf ([T_i64],[]), print'));
   ("print_f32", Func_host (Tf ([T_f32],[]), print'));
-  ("print_f64", Func_host (Tf ([T_f64],[]), print'))
+  ("print_f64", Func_host (Tf ([T_f64],[]), print'));
+  ("print_i32_f32", Func_host (Tf ([T_i32; T_f32],[]), print'));
+  ("print_f64_f64", Func_host (Tf ([T_f64; T_f64],[]), print'))
  ]
 
 let spectest_tab_imports =
@@ -37,6 +37,7 @@ let spectest_mem_imports =
 
 let spectest_glob_imports =
  [("global_i32", Global_ext (T_immut, ConstInt32 (ocaml_int32_to_isabelle_int32 666l), ()));
+  ("global_i64", Global_ext (T_immut, ConstInt64 (ocaml_int64_to_isabelle_int64 666L), ()));
   ("global_f32", Global_ext (T_immut, ConstFloat32 (F32.of_float 666.6), ()));
   ("global_f64", Global_ext (T_immut, ConstFloat64 (F64.of_float 666.6), ()))
  ]
