@@ -17,12 +17,12 @@ ZIP =		$(NAME).zip
 JSLIB =		wast.js
 WINMAKE =	winmake.bat
 
-DIRS =		util syntax binary text valid runtime exec script host main tests verified verified/interface
+DIRS =		util syntax binary text valid runtime exec script host main tests verified verified_wrapper
 LIBS =		bigarray
 PKGS =		zarith
-FLAGS = 	-lexflags -ml -cflags '-w +a-3-4-8-11-20-26-27-32-39-42-44-45 -warn-error +a-3 -unboxed-types'
+FLAGS = 	-use-ocamlfind -lexflags -ml -cflags '-w +a-3-4-8-11-20-26-27-32-39-42-44-45 -warn-error +a-3 -unboxed-types'
 OCBA =		ocamlbuild $(FLAGS) $(DIRS:%=-I %) $(PKGS:%=-pkgs %)
-OCB =		$(OCBA) $(LIBS:%=-libs %) $(PKGS:%=-pkgs %)
+OCB =		$(OCBA) $(LIBS:%=-libs %)
 
 JS =		# set to JS shell command to run JS tests
 
@@ -54,7 +54,7 @@ comma =		,
 _tags:
 		echo >$@ "true: bin_annot"
 		echo >>$@ "true: debug"
-		echo >>$@ "true: optimize(3)"
+		echo >>$@ "true: optimize(classic)"
 		echo >>$@ "<{$(subst $(space),$(comma),$(DIRS))}/*.cmx>: for-pack($(PACK))"
 
 $(UNOPT):	main.byte
