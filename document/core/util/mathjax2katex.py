@@ -106,13 +106,13 @@ def ReplaceMath(cache, data):
         break
       data = data[:start] + v.replace('#1', data[start+len(k):end]) + data[end:]
   p = subprocess.Popen(
-      ['node', os.path.join(SCRIPT_DIR, 'katex/cli.js'), '--display-mode'],
+      ['node', os.path.join(SCRIPT_DIR, 'katex/cli.js'), '--display-mode', '--trust'],
       stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
   ret = p.communicate(input=data)[0]
   if p.returncode != 0:
     sys.stderr.write('BEFORE:\n' + old + '\n')
     sys.stderr.write('AFTER:\n' + data + '\n')
-    return ''
+    raise Exception()
   ret = ret.strip()
   ret = ret[ret.find('<span class="katex-html"'):]
   ret = '<span class="katex-display"><span class="katex">' + ret
@@ -160,19 +160,6 @@ def Main():
   data = data.replace(
       '<li class="nav-item nav-item-0"><a href="index.html#document-index">'
       'WebAssembly 1.0</a> »', '')
-  # Drop Index links.
-  data = data.replace(
-      '<li><a class="reference internal" href="index.html#index-type">'
-      '<span class="std std-ref">Index of Types</span></a>', '')
-  data = data.replace(
-      '<li><a class="reference internal" href="index.html#index-instr">'
-      '<span class="std std-ref">Index of Instructions</span></a>', '')
-  data = data.replace(
-      '<li><a class="reference internal" href="index.html#index-rules">'
-      '<span class="std std-ref">Index of Semantic Rules</span></a>', '')
-  data = data.replace(
-      '<li><a class="reference internal" href="genindex.html">'
-      '<span class="std std-ref">Index</span></a>', '')
   # Drop sphinx css.
   data = data.replace(
       '<link href="_static/classic.css" rel="stylesheet" type="text/css">', '')
@@ -225,8 +212,10 @@ def Main():
   sys.stderr.write('Processing %d fragments.\n' % len(fixups))
 
   done_fixups = []
+  success = True
 
   def Worker():
+    nonlocal success
     while True:
       cls_before, cls_after, spans, mth, start, end = q.get()
       try:
@@ -234,13 +223,13 @@ def Main():
                  spans + ReplaceMath(cache, mth) + '<')
         done_fixups.append((start, end, fixed))
       except Exception:
-        sys.stderr.write('!!! Error processing fragment')
+        success = False
 
       q.task_done()
       sys.stderr.write('.')
 
   q = queue.Queue()
-  for i in range(40):
+  for i in range(len(os.sched_getaffinity(0))):
     t = threading.Thread(target=Worker)
     t.daemon = True
     t.start()
@@ -248,6 +237,11 @@ def Main():
   for item in fixups:
     q.put(item)
   q.join()
+
+  if not success:
+      sys.stderr.write('\n!!! Error processing fragments\n')
+      cache.close()
+      sys.exit(1)
 
   result = []
   last = 0
