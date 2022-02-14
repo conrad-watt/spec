@@ -25,6 +25,16 @@ let ocaml_int32_to_nat n = nat_of_integer (LibAux.z_of_uint32 n)
 
 let var_to_nat n = ocaml_int32_to_nat n.it
 
+let convert_tp = function
+	| Types.Pack8 -> Tp_i8
+	| Types.Pack16 -> Tp_i16
+	| Types.Pack32 -> Tp_i32
+        | _ -> raise PostMVP
+
+let convert_sx = function
+	| Types.SX -> S
+	| Types.ZX -> U
+
 let conv_elem_init econst =
   match econst.it with
   | [{it = Ast.RefFunc v; at;}] -> var_to_nat v
@@ -83,9 +93,10 @@ let convert_compareop = function
 	| F64 op -> Relop (T_f64, Relop_f (convert_float_compareop op))
 
 let convert_int_unop = function
-	| Ast.IntOp.Clz -> Clz
-	| Ast.IntOp.Ctz -> Ctz
-	| Ast.IntOp.Popcnt -> Popcnt
+	| Ast.IntOp.Clz -> Unop_i Clz
+	| Ast.IntOp.Ctz -> Unop_i Ctz
+	| Ast.IntOp.Popcnt -> Unop_i Popcnt
+        | Ast.IntOp.ExtendS tp -> Extend_s (convert_tp tp)
 
 let convert_float_unop = function
 	| Ast.FloatOp.Neg -> Neg
@@ -97,8 +108,8 @@ let convert_float_unop = function
 	| Ast.FloatOp.Sqrt -> Sqrt
 
 let convert_unop = function
-	| I32 op -> Unop (T_i32, Unop_i (convert_int_unop op))
-	| I64 op -> Unop (T_i64, Unop_i (convert_int_unop op))
+	| I32 op -> Unop (T_i32, (convert_int_unop op))
+	| I64 op -> Unop (T_i64, (convert_int_unop op))
 	| F32 op -> Unop (T_f32, Unop_f (convert_float_unop op))
 	| F64 op  -> Unop (T_f64, Unop_f (convert_float_unop op))
 
@@ -142,21 +153,25 @@ let t_reinterpret = function
         | _ -> raise PostMVP
 
 let convert_int_convertop t1 = function
-	| Ast.IntOp.ExtendSI32 -> Cvtop (t1, Convert, T_i32, Some S)
-	| Ast.IntOp.ExtendUI32 -> Cvtop (t1, Convert, T_i32, Some U)
+	| Ast.IntOp.ExtendSI32 -> Cvtop (t1, Convert, T_i32, Some (Nonsat, S))
+	| Ast.IntOp.ExtendUI32 -> Cvtop (t1, Convert, T_i32, Some (Nonsat, U))
 	| Ast.IntOp.WrapI64 -> Cvtop (t1, Convert, T_i64, None)
-	| Ast.IntOp.TruncSF32 -> Cvtop (t1, Convert, T_f32, Some S)
-	| Ast.IntOp.TruncUF32 -> Cvtop (t1, Convert, T_f32, Some U)
-	| Ast.IntOp.TruncSF64 -> Cvtop (t1, Convert, T_f64, Some S)
-	| Ast.IntOp.TruncUF64 -> Cvtop (t1, Convert, T_f64, Some U)
+	| Ast.IntOp.TruncSF32 -> Cvtop (t1, Convert, T_f32, Some (Nonsat, S))
+	| Ast.IntOp.TruncUF32 -> Cvtop (t1, Convert, T_f32, Some (Nonsat, U))
+	| Ast.IntOp.TruncSF64 -> Cvtop (t1, Convert, T_f64, Some (Nonsat, S))
+	| Ast.IntOp.TruncUF64 -> Cvtop (t1, Convert, T_f64, Some (Nonsat, U))
+	| Ast.IntOp.TruncSatSF32 -> Cvtop (t1, Convert, T_f32, Some (Sat, S))
+	| Ast.IntOp.TruncSatUF32 -> Cvtop (t1, Convert, T_f32, Some (Sat, U))
+	| Ast.IntOp.TruncSatSF64 -> Cvtop (t1, Convert, T_f64, Some (Sat, S))
+	| Ast.IntOp.TruncSatUF64 -> Cvtop (t1, Convert, T_f64, Some (Sat, U))
 	| Ast.IntOp.ReinterpretFloat -> Cvtop (t1, Reinterpret, t_reinterpret t1, None)
         | _ -> raise PostMVP
 
 let convert_float_convertop t1 = function
-  | Ast.FloatOp.ConvertSI32 -> Cvtop (t1, Convert, T_i32, Some S)
-  | Ast.FloatOp.ConvertUI32 -> Cvtop (t1, Convert, T_i32, Some U)
-  | Ast.FloatOp.ConvertSI64 -> Cvtop (t1, Convert, T_i64, Some S)
-  | Ast.FloatOp.ConvertUI64 -> Cvtop (t1, Convert, T_i64, Some U)
+  | Ast.FloatOp.ConvertSI32 -> Cvtop (t1, Convert, T_i32, Some (Nonsat, S))
+  | Ast.FloatOp.ConvertUI32 -> Cvtop (t1, Convert, T_i32, Some (Nonsat, U))
+  | Ast.FloatOp.ConvertSI64 -> Cvtop (t1, Convert, T_i64, Some (Nonsat, S))
+  | Ast.FloatOp.ConvertUI64 -> Cvtop (t1, Convert, T_i64, Some (Nonsat, U))
   | Ast.FloatOp.PromoteF32 -> Cvtop (t1, Convert, T_f32, None)
   | Ast.FloatOp.DemoteF64 -> Cvtop (t1, Convert, T_f64, None)
   | Ast.FloatOp.ReinterpretInt -> Cvtop (t1, Reinterpret, t_reinterpret t1, None)
@@ -171,16 +186,6 @@ let convert_ftype' = function
 	| FuncType (stype1, stype2) -> Tf (convert_vltype stype1, convert_vltype stype2)
 
 let convert_ftype ft = convert_ftype' (ft.it)
-
-let convert_tp = function
-	| Types.Pack8 -> Tp_i8
-	| Types.Pack16 -> Tp_i16
-	| Types.Pack32 -> Tp_i32
-        | _ -> raise PostMVP
-
-let convert_sx = function
-	| Types.SX -> S
-	| Types.ZX -> U
 
 let convert_load_tp_sx = function
 	| None -> None
