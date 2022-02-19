@@ -542,9 +542,9 @@ let run_assertion ass =
          (let m_isa = Ast_convert.convert_module m.it in
          if not !Flags.unchecked then Valid.check_module_isa m_isa;
          let imports_isa = List.map match_import_isa (WasmRef_Isa.m_imports m_isa) in
-         (match WasmRef_Isa.interp_instantiate_m !store_isa m_isa imports_isa () with
-          | None -> assert_message ass.at "linking" "" re
-          | _ -> Assert.error ass.at "expected linking error"
+         (match WasmRef_Isa.interp_instantiate_init_m !store_isa m_isa imports_isa () with
+          | (s', WasmRef_Isa.RI_res_m _) -> store_isa := s'; Assert.error ass.at "expected linking error"
+          | (s',_) -> store_isa := s'; assert_message ass.at "linking" "" re
          ))
        with
        | (Import.Unknown (_, msg) | Eval.Link (_, msg)) ->
@@ -570,11 +570,9 @@ let run_assertion ass =
          (let m_isa = Ast_convert.convert_module m.it in
          if not !Flags.unchecked then Valid.check_module_isa m_isa;
          let imports_isa = List.map match_import_isa (WasmRef_Isa.m_imports m_isa) in
-         (match WasmRef_Isa.interp_instantiate_m !store_isa m_isa imports_isa () with
-          | None -> assert_message ass.at "instantiation" "" re
-          | Some ((s', (inst, exps)), start_opt) ->
-              store_isa := s';
-              Lib.Option.app (fun x -> ignore (invoke_isa [] x)) start_opt;
+         (match WasmRef_Isa.interp_instantiate_init_m !store_isa m_isa imports_isa () with
+          | (s', WasmRef_Isa.RI_res_m(inst, exps, _)) -> store_isa := s'
+          | (s', _) -> store_isa := s'; assert_message ass.at "instantiation" "" re
          ))
        with
        | (Eval.Trap (_, msg)) ->
@@ -629,15 +627,14 @@ let rec run_command cmd =
             if !Flags.print_sig then failwith "NYI"
           end;
          let imports_isa = List.map match_import_isa (WasmRef_Isa.m_imports m_isa) in
-         (match WasmRef_Isa.interp_instantiate_m !store_isa m_isa imports_isa () with
-          | Some ((s', (inst, exps)), start_opt) ->
+         (match WasmRef_Isa.interp_instantiate_init_m !store_isa m_isa imports_isa () with
+          | (s', WasmRef_Isa.RI_res_m(inst, exps, _)) ->
               store_isa := s';
-              Lib.Option.app (fun x -> ignore (invoke_isa [] x)) start_opt;
               if not !Flags.dry then begin
                 trace "Initializing...";
                 bind_isa exports_isa x_opt (List.map (fun x -> WasmRef_Isa.(e_name x, e_desc x)) exps)
               end
-          | None -> failwith "(Isabelle) instantiation failure"
+          | (s',_) -> store_isa := s'; failwith "(Isabelle) instantiation failure"
          ))
        with
        | e -> trace ("(Isabelle) module processing error at " ^ (string_of_region cmd.at)); raise e
