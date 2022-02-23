@@ -983,7 +983,6 @@ module WasmRef_Isa : sig
   val if_pred : bool -> unit pred
   val msb_uint8 : uint8 -> bool
   val msb_byte : uint8 -> bool
-  val size_t : t -> nat
   val dvd : 'a equal * 'a semidom_modulo -> 'a -> 'a -> bool
   val bin_split : nat -> int -> int * int
   val list_all : ('a -> bool) -> 'a list -> bool
@@ -1096,7 +1095,6 @@ module WasmRef_Isa : sig
   val eq_i_i : 'a equal -> 'a -> 'a -> unit pred
   val fold_map : ('a -> (unit -> 'b)) -> 'a list -> (unit -> ('b list))
   val list_all2 : ('a -> 'b -> bool) -> 'a list -> 'b list -> bool
-  val size_tp : tp -> nat
   val bin_rsplit_rev : nat -> nat -> int -> int list
   val word_rsplit_rev : 'a len -> 'b len -> 'a word -> 'b word list
   val serialise_i64 : i64 -> uint8 list
@@ -1381,7 +1379,8 @@ module WasmRef_Isa : sig
     nat ->
       nat ->
         unit s_m_ext ->
-          unit m_ext -> v_ext list -> v list -> (unit -> (unit s_m_ext * res))
+          unit m_ext ->
+            v_ext list -> (v list) option -> (unit -> (unit s_m_ext * res))
   val run_m :
     unit s_m_ext * (v array * (unit inst_m_ext * b_e list)) ->
       (unit -> (unit s_m_ext * res))
@@ -3952,11 +3951,6 @@ let rec msb_uint8 x = uint8_test_bit x (Z.of_int 7);;
 
 let rec msb_byte x = msb_uint8 x;;
 
-let rec size_t = function T_i32 -> zero_nat
-                 | T_i64 -> zero_nat
-                 | T_f32 -> zero_nat
-                 | T_f64 -> zero_nat;;
-
 let rec dvd (_A1, _A2)
   a b = eq _A1
           (modulo _A2.semiring_modulo_semidom_modulo.modulo_semiring_modulo b a)
@@ -4589,10 +4583,6 @@ let rec list_all2
     | p, xs, [] -> null xs
     | p, [], ys -> null ys;;
 
-let rec size_tp = function Tp_i8 -> zero_nat
-                  | Tp_i16 -> zero_nat
-                  | Tp_i32 -> zero_nat;;
-
 let rec bin_rsplit_rev
   n m c =
     (if equal_nat m zero_nat || equal_nat n zero_nat then []
@@ -4860,7 +4850,7 @@ let rec sign_extend
 let rec app_extend_s
   tp v =
     wasm_deserialise
-      (sign_extend S (size_t (typeof v)) (take (size_tp tp) (bits v)))
+      (sign_extend S (t_length (typeof v)) (take (tp_length tp) (bits v)))
       (typeof v);;
 
 let rec app_unop
@@ -6834,7 +6824,7 @@ let rec run_invoke_v_m
           ()));;
 
 let rec run_fuzz
-  n d s m v_imps v_args =
+  n d s m v_imps opt_vs =
     (fun () ->
       (let a = interp_instantiate_init_m s m v_imps () in
         (match a with (sa, RI_crash_m res) -> (fun () -> (sa, RCrash res))
@@ -6859,7 +6849,15 @@ let rec run_fuzz
                           (sb, RCrash (Error_invariant "no import to invoke")))
                       | Some exp ->
                         (let Ext_func i = e_desc exp in
-                          run_invoke_v_m n d (sb, (v_args, i))))
+                          (fun f_ () -> f_ ((array_nth heap_cl_m (funcs sb) i)
+                            ()) ())
+                            (fun cl ->
+                              (let Tf (t1, _) = cl_m_type cl in
+                               let params =
+                                 (match opt_vs with None -> map bitzero t1
+                                   | Some ab -> rev ab)
+                                 in
+                                run_invoke_v_m n d (sb, (params, i))))))
                   | (sb, RValue (_ :: _)) ->
                     (fun () -> (sb, RCrash (Error_invalid "start function"))))))
           ()));;
