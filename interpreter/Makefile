@@ -20,7 +20,7 @@ WINMAKE =	winmake.bat
 DIRS =		util syntax binary text valid runtime exec script host main tests verified verified_wrapper
 LIBS =		bigarray
 PKGS =		zarith
-FLAGS = 	-use-ocamlfind -lexflags -ml -cflags '-w +a-3-4-8-11-20-26-27-32-39-42-44-45 -warn-error +a-3 -unboxed-types'
+FLAGS = 	-use-ocamlfind -lexflags -ml -cflags '-w +a-3-4-8-11-20-26-27-32-39-42-44-45-70 -warn-error -unboxed-types'
 OCBA =		ocamlbuild $(FLAGS) $(DIRS:%=-I %) $(PKGS:%=-pkgs %)
 OCB =		$(OCBA) $(LIBS:%=-libs %)
 
