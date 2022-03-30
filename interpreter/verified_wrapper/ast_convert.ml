@@ -12,8 +12,13 @@ let convert_t_num = function
   | F64Type -> T_f64
   | _ -> raise PostMVP
 
+let convert_t_vec = function
+  | V128Type -> T_v128
+  | _ -> raise PostMVP
+
 let convert_t = function
-  | NumType t -> convert_t_num t
+  | NumType t -> T_num (convert_t_num t)
+  | VecType t -> T_vec (convert_t_vec t)
   | _ -> raise PostMVP
 
 let convert_vltype vl_type = List.map convert_t vl_type
@@ -46,8 +51,12 @@ let convert_value_num = function
 	| F32 c -> ConstFloat32 c
 	| F64 c -> ConstFloat64 c
 
+let convert_value_vec = function
+	| V128 c -> ConstVec128 c
+
 let convert_value = function
-        | Num n -> convert_value_num n
+        | Num n -> V_num (convert_value_num n)
+        | Vec v-> V_vec (convert_value_vec v)
         | _ -> raise PostMVP
 
 let convert_value_num_rev = function
@@ -56,7 +65,13 @@ let convert_value_num_rev = function
 	| ConstFloat32 c -> F32 c
 	| ConstFloat64 c -> F64 c
 
-let convert_value_rev v = Num (convert_value_num_rev v)
+let convert_value_vec_rev = function
+	| ConstVec128 c -> V128 c
+
+let convert_value_rev = function
+        | V_num v -> Num (convert_value_num_rev v)
+        | V_vec v -> Vec (convert_value_vec_rev v)
+        | _ -> raise PostMVP
 
 let convert_int_testop = function
 	| Ast.IntOp.Eqz -> Eqz
@@ -225,12 +240,14 @@ let rec convert_instr instr =
 	                   Store ((convert_t_num ty), convert_store_tp pack, (ocaml_int_to_nat align), (ocaml_int32_to_nat offset))
 	| Ast.MemorySize -> Current_memory
 	| Ast.MemoryGrow -> Grow_memory
-	| Ast.Const v -> EConst (convert_value_num v.it)
+	| Ast.Const v -> EConst (V_num (convert_value_num v.it))
 	| Ast.Test top -> convert_testop top
 	| Ast.Compare cop -> convert_compareop cop
 	| Ast.Unary uop -> convert_unop uop
 	| Ast.Binary bop -> convert_binop bop
 	| Ast.Convert cop -> convert_convertop cop
+
+	| Ast.VecConst v -> EConst (V_vec (convert_value_vec v.it))
 
         | _ -> raise PostMVP
 

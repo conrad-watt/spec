@@ -21,3 +21,7 @@ let deserialise_f32 bs = F32.of_bits (deserialise_i32 bs)
 let deserialise_f64 bs = F64.of_bits (deserialise_i64 bs)
 
 let bool b = (if b then 1l else 0l)
+
+let serialise_v128 (v : V128Wrapper.t) = LibAux.string_explode (V128Wrapper.to_bits v)
+
+let deserialise_v128 (bs :byte list) = V128Wrapper.of_bits (LibAux.string_implode bs)
