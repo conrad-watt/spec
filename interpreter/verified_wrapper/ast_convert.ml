@@ -210,6 +210,24 @@ let convert_store_tp = function
 	| None -> None
 	| Some mtp -> Some (convert_tp mtp)
 
+let convert_pack_size_to_shape_vec_i = function
+        | Pack8 -> I8_16 | Pack16 -> I16_8 | Pack32 -> I32_4 | Pack64 -> I64_2
+
+let convert_pack_shape_to_tp_vec = function
+        | Pack8x8 -> Tp_v8_8 | Pack16x4 -> Tp_v16_4 | Pack32x2 -> Tp_v32_2
+
+let convert_extension_to_sx = function
+        | SX -> S | ZX -> U
+
+let convert_loadop_vec = function
+	| None -> Load_128
+        (* TODO: check if there are constraints on x for the ExtLane case *)
+        | Some (x,ExtLane (ps,ext)) -> Load_packed_vec ((convert_pack_shape_to_tp_vec ps), (convert_extension_to_sx ext))
+	| Some (Pack32,ExtZero) -> Load_32_zero
+	| Some (Pack64,ExtZero) -> Load_64_zero
+	| Some (x,ExtSplat) -> Load_splat (convert_pack_size_to_shape_vec_i x)
+        | _ -> failwith "loadop_vec invariant"
+
 let rec convert_instr instr =
 	match instr.it with
 	| Ast.Unreachable -> Unreachable
@@ -248,6 +266,25 @@ let rec convert_instr instr =
 	| Ast.Convert cop -> convert_convertop cop
 
 	| Ast.VecConst v -> EConst (V_vec (convert_value_vec v.it))
+        | Ast.VecTest op -> Test_vec (V128Wrapper.Testop_VecTest op)
+        | Ast.VecTestBits op -> Test_vec (V128Wrapper.Testop_VecTestBits op)
+        | Ast.VecBitmask op -> Test_vec (V128Wrapper.Testop_VecBitmask op)
+        | Ast.VecUnary op -> Unop_vec (V128Wrapper.Unop_VecUnary op)
+        | Ast.VecUnaryBits op -> Unop_vec (V128Wrapper.Unop_VecUnaryBits op)
+        | Ast.VecConvert op -> Unop_vec (V128Wrapper.Unop_VecConvert op)
+        | Ast.VecBinary op -> Binop_vec (V128Wrapper.Binop_VecBinary op)
+        | Ast.VecBinaryBits op -> Binop_vec (V128Wrapper.Binop_VecBinaryBits op)
+        | Ast.VecCompare op -> Binop_vec (V128Wrapper.Binop_VecCompare op)
+        | Ast.VecTernaryBits op -> Ternop_vec (V128Wrapper.Ternop_VecTernaryBits op)
+        | Ast.VecShift op -> Shift_vec (V128Wrapper.Shift_VecShift op)
+        | Ast.VecLoad lop -> let {Ast.ty; Ast.align; Ast.offset; Ast.pack} = lop in
+                             Load_vec (convert_loadop_vec pack, (ocaml_int_to_nat align), (ocaml_int32_to_nat offset))
+        | Ast.VecStore sop -> let {Ast.ty; Ast.align; Ast.offset; Ast.pack} = sop in
+                              Store_vec (Store_128, (ocaml_int_to_nat align), (ocaml_int32_to_nat offset))
+        | Ast.VecLoadLane llop -> let ({Ast.ty; Ast.align; Ast.offset; Ast.pack},n) = llop in
+                                  Load_lane_vec ((convert_pack_size_to_shape_vec_i pack), (ocaml_int_to_nat n), (ocaml_int_to_nat align), (ocaml_int32_to_nat offset))
+        | Ast.VecStoreLane slop -> let ({Ast.ty; Ast.align; Ast.offset; Ast.pack},n) = slop in
+                                  Store_vec (Store_lane ((convert_pack_size_to_shape_vec_i pack), (ocaml_int_to_nat n)), (ocaml_int_to_nat align), (ocaml_int32_to_nat offset))
 
         | _ -> raise PostMVP
 
