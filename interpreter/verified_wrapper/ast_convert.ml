@@ -228,6 +228,30 @@ let convert_loadop_vec = function
 	| Some (x,ExtSplat) -> Load_splat (convert_pack_size_to_shape_vec_i x)
         | _ -> failwith "loadop_vec invariant"
 
+let convert_splatop_to_shape_vec = function
+  | V128 (V128.I8x16 Ast.V128Op.Splat) -> Svi I8_16
+  | V128 (V128.I16x8 Ast.V128Op.Splat) -> Svi I16_8
+  | V128 (V128.I32x4 Ast.V128Op.Splat) -> Svi I32_4
+  | V128 (V128.I64x2 Ast.V128Op.Splat) -> Svi I64_2
+  | V128 (V128.F32x4 Ast.V128Op.Splat) -> Svf F32_4
+  | V128 (V128.F64x2 Ast.V128Op.Splat) -> Svf F64_2
+
+let convert_replaceop_to_shape_vec_and_i = function
+  | V128 (V128.I8x16 (Ast.V128Op.Replace i)) -> (Svi I8_16, ocaml_int_to_nat i)
+  | V128 (V128.I16x8 (Ast.V128Op.Replace i)) -> (Svi I16_8, ocaml_int_to_nat i)
+  | V128 (V128.I32x4 (Ast.V128Op.Replace i)) -> (Svi I32_4, ocaml_int_to_nat i)
+  | V128 (V128.I64x2 (Ast.V128Op.Replace i)) -> (Svi I64_2, ocaml_int_to_nat i)
+  | V128 (V128.F32x4 (Ast.V128Op.Replace i)) -> (Svf F32_4, ocaml_int_to_nat i)
+  | V128 (V128.F64x2 (Ast.V128Op.Replace i)) -> (Svf F64_2, ocaml_int_to_nat i)
+
+let convert_extractop_to_shape_vec_and_sx_and_i = function
+  | V128 (V128.I8x16 (Ast.V128Op.Extract (i,ext))) -> (Svi I8_16, convert_extension_to_sx ext, ocaml_int_to_nat i)
+  | V128 (V128.I16x8 (Ast.V128Op.Extract (i,ext))) -> (Svi I16_8, convert_extension_to_sx ext, ocaml_int_to_nat i)
+  | V128 (V128.I32x4 (Ast.V128Op.Extract (i,_))) -> (Svi I32_4, U, ocaml_int_to_nat i)
+  | V128 (V128.I64x2 (Ast.V128Op.Extract (i,_))) -> (Svi I64_2, U, ocaml_int_to_nat i)
+  | V128 (V128.F32x4 (Ast.V128Op.Extract (i,_))) -> (Svf F32_4, U, ocaml_int_to_nat i)
+  | V128 (V128.F64x2 (Ast.V128Op.Extract (i,_))) -> (Svf F64_2, U, ocaml_int_to_nat i)
+
 let rec convert_instr instr =
 	match instr.it with
 	| Ast.Unreachable -> Unreachable
@@ -277,6 +301,10 @@ let rec convert_instr instr =
         | Ast.VecCompare op -> Binop_vec (V128Wrapper.Binop_VecCompare op)
         | Ast.VecTernaryBits op -> Ternop_vec (V128Wrapper.Ternop_VecTernaryBits op)
         | Ast.VecShift op -> Shift_vec (V128Wrapper.Shift_VecShift op)
+        | Ast.VecSplat op -> Splat_vec (convert_splatop_to_shape_vec op)
+        | Ast.VecExtract op -> let (sv,sx,i) = convert_extractop_to_shape_vec_and_sx_and_i op in Extract_vec (sv, sx, i)
+        | Ast.VecReplace op -> let (sv,i) = convert_replaceop_to_shape_vec_and_i op in Replace_vec (sv, i)
+
         | Ast.VecLoad lop -> let {Ast.ty; Ast.align; Ast.offset; Ast.pack} = lop in
                              Load_vec (convert_loadop_vec pack, (ocaml_int_to_nat align), (ocaml_int32_to_nat offset))
         | Ast.VecStore sop -> let {Ast.ty; Ast.align; Ast.offset; Ast.pack} = sop in

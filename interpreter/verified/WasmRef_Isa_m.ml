@@ -4571,11 +4571,11 @@ let rec store_vec_t_bounds
   sv a =
     (match sv
       with Store_128 ->
-        less_nat (power power_nat (nat_of_integer (Z.of_int 2)) a)
+        less_eq_nat (power power_nat (nat_of_integer (Z.of_int 2)) a)
           (t_vec_length T_v128)
       | Store_lane (svi, i) ->
         less_nat i (vec_i_num svi) &&
-          less_nat (power power_nat (nat_of_integer (Z.of_int 2)) a)
+          less_eq_nat (power power_nat (nat_of_integer (Z.of_int 2)) a)
             (vec_i_length svi));;
 
 let rec is_float_t_num
@@ -4601,19 +4601,19 @@ let rec load_vec_t_bounds
   lv a =
     (match lv
       with Load_128 ->
-        less_nat (power power_nat (nat_of_integer (Z.of_int 2)) a)
+        less_eq_nat (power power_nat (nat_of_integer (Z.of_int 2)) a)
           (t_vec_length T_v128)
       | Load_packed_vec (tp, _) ->
-        less_nat (power power_nat (nat_of_integer (Z.of_int 2)) a)
+        less_eq_nat (power power_nat (nat_of_integer (Z.of_int 2)) a)
           (times_nata (tp_vec_length tp) (tp_vec_num tp))
       | Load_32_zero ->
-        less_nat (power power_nat (nat_of_integer (Z.of_int 2)) a)
+        less_eq_nat (power power_nat (nat_of_integer (Z.of_int 2)) a)
           (t_vec_length T_v128)
       | Load_64_zero ->
-        less_nat (power power_nat (nat_of_integer (Z.of_int 2)) a)
+        less_eq_nat (power power_nat (nat_of_integer (Z.of_int 2)) a)
           (t_vec_length T_v128)
       | Load_splat svi ->
-        less_nat (power power_nat (nat_of_integer (Z.of_int 2)) a)
+        less_eq_nat (power power_nat (nat_of_integer (Z.of_int 2)) a)
           (vec_i_length svi));;
 
 let rec binop_t_num_agree
@@ -4875,7 +4875,7 @@ and check_single
     | c, Load_lane_vec (svi, i, a, off), ts ->
         (if less_eq_nat one_nata (size_list (memory c)) &&
               (less_nat i (vec_i_num svi) &&
-                less_nat (power power_nat (nat_of_integer (Z.of_int 2)) a)
+                less_eq_nat (power power_nat (nat_of_integer (Z.of_int 2)) a)
                   (vec_i_length svi))
           then type_update ts [TSome (T_num T_i32); TSome (T_vec T_v128)]
                  (Typea [T_vec T_v128])
@@ -6178,7 +6178,8 @@ let rec load_bytes_m_v
 let rec insert_lane_vec_bs
   len_lane i bs_lane bs_vec =
     take (times_nata i len_lane) bs_vec @
-      bs_lane @ drop (times_nata (plus_nat i one_nata) len_lane) bs_vec;;
+      take len_lane bs_lane @
+        drop (times_nata (plus_nat i one_nata) len_lane) bs_vec;;
 
 let rec insert_lane_vec
   svi i bs v =
