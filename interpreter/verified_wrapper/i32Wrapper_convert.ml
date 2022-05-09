@@ -35,3 +35,7 @@ let trunc_sat_s_f32 x = I32_convert.trunc_sat_f32_s x
 let trunc_sat_u_f64 x = I32_convert.trunc_sat_f64_u x
 
 let trunc_sat_s_f64 x = I32_convert.trunc_sat_f64_s x
+
+let reinterpret_of_f32 x = I32_convert.reinterpret_f32 x
+
+let reinterpret_to_f32 x = F32_convert.reinterpret_i32 x
