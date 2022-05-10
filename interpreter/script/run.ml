@@ -382,7 +382,7 @@ let invoke_isa (vs : Values.value list) (n : WasmRef_Isa.nat) : Values.value lis
   let (s', res) = WasmRef_Isa.run_invoke_m config () in
   store_isa := s';
   match res with
-  | WasmRef_Isa.RValue vs_isa' -> List.map Ast_convert.convert_value_rev vs_isa'
+  | WasmRef_Isa.RValue vs_isa' -> List.rev_map Ast_convert.convert_value_rev vs_isa'
   | WasmRef_Isa.RTrap str -> raise (Eval.Trap (no_region, "(Isabelle) trap: " ^ str))
   | WasmRef_Isa.(RCrash (Error_exhaustion str)) -> raise (Eval.Exhaustion (no_region, "(Isabelle) call stack exhausted"))
   | WasmRef_Isa.(RCrash (Error_invalid str)) -> raise (Eval.Crash (no_region, "(Isabelle) error: " ^ str))

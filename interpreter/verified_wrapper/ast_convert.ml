@@ -202,6 +202,11 @@ let convert_ftype' = function
 
 let convert_ftype ft = convert_ftype' (ft.it)
 
+let convert_tb = function
+  | Ast.VarBlockType i -> Tbf (var_to_nat i)
+  | Ast.ValBlockType (Some t) -> Tbv (Some (convert_t t))
+  | Ast.ValBlockType None -> Tbv None
+
 let convert_load_tp_sx = function
 	| None -> None
 	| Some (mtp, msx) -> Some (convert_tp mtp, convert_sx msx)
@@ -257,12 +262,12 @@ let rec convert_instr instr =
 	| Ast.Unreachable -> Unreachable
 	| Ast.Nop -> Nop
         (* TODO: multi-value *)
-	| Ast.Block (Ast.ValBlockType st, binstrs) ->
-            Block (Tf ([],convert_vltype_opt st), convert_instrs binstrs)
-	| Ast.Loop (Ast.ValBlockType st, binstrs) ->
-            Loop (Tf ([],convert_vltype_opt st), convert_instrs binstrs)
-	| Ast.If (Ast.ValBlockType st, binstrs1, binstrs2) ->
-            If (Tf ([],convert_vltype_opt st), convert_instrs binstrs1, convert_instrs binstrs2)
+	| Ast.Block (tb, binstrs) ->
+            Block (convert_tb tb, convert_instrs binstrs)
+	| Ast.Loop (tb, binstrs) ->
+            Loop (convert_tb tb, convert_instrs binstrs)
+	| Ast.If (tb, binstrs1, binstrs2) ->
+            If (convert_tb tb, convert_instrs binstrs1, convert_instrs binstrs2)
 	| Ast.Br n -> Br (var_to_nat n)
  	| Ast.BrIf n -> Br_if (var_to_nat n)
 	| Ast.BrTable (ns, n) -> Br_table (List.map var_to_nat ns, var_to_nat n)
