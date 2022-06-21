@@ -627,8 +627,6 @@ module WasmRef_Isa : sig
   val mod0_uint32 : int32 -> int32
   val div0_uint32 : int32 -> int32
   val push_bit_uint32 : nat -> int32 -> int32
-  val mask_uint32 : nat -> int32
-  val take_bit_uint32 : nat -> int32 -> int32
   val plus_uint32 : int32 plus
   val semigroup_add_uint32 : int32 semigroup_add
   val cancel_semigroup_add_uint32 : int32 cancel_semigroup_add
@@ -672,26 +670,14 @@ module WasmRef_Isa : sig
   val semiring_modulo_uint32 : int32 semiring_modulo
   val semiring_parity_uint32 : int32 semiring_parity
   val semiring_bits_uint32 : int32 semiring_bits
+  val mask_uint32 : nat -> int32
+  val take_bit_uint32 : nat -> int32 -> int32
   val semiring_bit_shifts_uint32 : int32 semiring_bit_shifts
   val int_rem_u_i32 : i32 -> i32 -> i32 option
-  val signed_modulo_word : 'a len -> 'a word -> 'a word -> 'a word
-  val id : 'a -> 'a
-  val foldr : ('a -> 'b -> 'b) -> 'a list -> 'b -> 'b
-  val horner_sum : 'b comm_semiring_0 -> ('a -> 'b) -> 'b -> 'a list -> 'b
-  val of_bool : 'a zero_neq_one -> bool -> 'a
-  val map : ('a -> 'b) -> 'a list -> 'b list
-  val upt : nat -> nat -> nat list
-  val set_bits_word : 'a len -> (nat -> bool) -> 'a word
-  val rep_uint32 : int32 -> num1 bit0 bit0 bit0 bit0 bit0 word
-  val abs_uint32 : num1 bit0 bit0 bit0 bit0 bit0 word -> int32
   val int_rem_s_i32 : i32 -> i32 -> i32 option
   val int_div_u_i32 : i32 -> i32 -> i32 option
   val int_div_s_i32 : i32 -> i32 -> i32 option
-  val modulo_nat : nat -> nat -> nat
-  val concat_bit : nat -> int -> int -> int
-  val word_rotr : 'a len -> nat -> 'a word -> 'a word
   val int_rotr_i32 : i32 -> i32 -> i32
-  val word_rotl : 'a len -> nat -> 'a word -> 'a word
   val int_rotl_i32 : i32 -> i32 -> i32
   val int_lt_u_i32 : i32 -> i32 -> bool
   val msb_uint32 : int32 -> bool
@@ -709,11 +695,20 @@ module WasmRef_Isa : sig
   val int_eqz_i32 : i32 -> bool
   val gen_length : nat -> 'a list -> nat
   val size_list : 'a list -> nat
+  val map : ('a -> 'b) -> 'a list -> 'b list
+  val upt : nat -> nat -> nat list
   val fold : ('a -> 'b -> 'b) -> 'a list -> 'b -> 'b
   val rev : 'a list -> 'a list
   val to_bl : 'a len -> 'a word -> bool list
   val takeWhile : ('a -> bool) -> 'a list -> 'a list
   val word_ctz : 'a len -> 'a word -> nat
+  val id : 'a -> 'a
+  val foldr : ('a -> 'b -> 'b) -> 'a list -> 'b -> 'b
+  val horner_sum : 'b comm_semiring_0 -> ('a -> 'b) -> 'b -> 'a list -> 'b
+  val of_bool : 'a zero_neq_one -> bool -> 'a
+  val set_bits_word : 'a len -> (nat -> bool) -> 'a word
+  val rep_uint32 : int32 -> num1 bit0 bit0 bit0 bit0 bit0 word
+  val abs_uint32 : num1 bit0 bit0 bit0 bit0 bit0 word -> int32
   val of_nat : 'a len -> nat -> 'a word
   val int_ctz_i32 : i32 -> i32
   val word_clz : 'a len -> 'a word -> nat
@@ -796,12 +791,53 @@ module WasmRef_Isa : sig
   val uint64_divmod : int64 -> int64 -> int64 * int64
   val uint64_mod : int64 -> int64 -> int64
   val int_rem_u_i64 : i64 -> i64 -> i64 option
-  val rep_uint64 : int64 -> num1 bit0 bit0 bit0 bit0 bit0 bit0 word
-  val abs_uint64 : num1 bit0 bit0 bit0 bit0 bit0 bit0 word -> int64
   val int_rem_s_i64 : i64 -> i64 -> i64 option
   val uint64_div : int64 -> int64 -> int64
   val int_div_u_i64 : i64 -> i64 -> i64 option
   val int_div_s_i64 : i64 -> i64 -> i64 option
+  val modulo_uint64a : int64 -> int64 -> int64
+  val divide_uint64a : int64 -> int64 -> int64
+  val plus_uint64 : int64 plus
+  val semigroup_add_uint64 : int64 semigroup_add
+  val cancel_semigroup_add_uint64 : int64 cancel_semigroup_add
+  val ab_semigroup_add_uint64 : int64 ab_semigroup_add
+  val minus_uint64 : int64 minus
+  val cancel_ab_semigroup_add_uint64 : int64 cancel_ab_semigroup_add
+  val zero_uint64 : int64 zero
+  val monoid_add_uint64 : int64 monoid_add
+  val comm_monoid_add_uint64 : int64 comm_monoid_add
+  val cancel_comm_monoid_add_uint64 : int64 cancel_comm_monoid_add
+  val times_uint64 : int64 times
+  val mult_zero_uint64 : int64 mult_zero
+  val semigroup_mult_uint64 : int64 semigroup_mult
+  val semiring_uint64 : int64 semiring
+  val semiring_0_uint64 : int64 semiring_0
+  val semiring_0_cancel_uint64 : int64 semiring_0_cancel
+  val ab_semigroup_mult_uint64 : int64 ab_semigroup_mult
+  val comm_semiring_uint64 : int64 comm_semiring
+  val comm_semiring_0_uint64 : int64 comm_semiring_0
+  val comm_semiring_0_cancel_uint64 : int64 comm_semiring_0_cancel
+  val one_uint64 : int64 one
+  val power_uint64 : int64 power
+  val monoid_mult_uint64 : int64 monoid_mult
+  val numeral_uint64 : int64 numeral
+  val semiring_numeral_uint64 : int64 semiring_numeral
+  val zero_neq_one_uint64 : int64 zero_neq_one
+  val semiring_1_uint64 : int64 semiring_1
+  val semiring_1_cancel_uint64 : int64 semiring_1_cancel
+  val dvd_uint64 : int64 dvd
+  val comm_monoid_mult_uint64 : int64 comm_monoid_mult
+  val comm_semiring_1_uint64 : int64 comm_semiring_1
+  val comm_semiring_1_cancel_uint64 : int64 comm_semiring_1_cancel
+  val divide_uint64 : int64 divide
+  val modulo_uint64 : int64 modulo
+  val semiring_modulo_uint64 : int64 semiring_modulo
+  val semiring_parity_uint64 : int64 semiring_parity
+  val semiring_bits_uint64 : int64 semiring_bits
+  val take_bit_uint64 : nat -> int64 -> int64
+  val semiring_bit_shifts_uint64 : int64 semiring_bit_shifts
+  val semiring_bit_syntax_uint64 : int64 semiring_bit_syntax
+  val mask_uint64 : nat -> int64
   val int_rotr_i64 : i64 -> i64 -> i64
   val int_rotl_i64 : i64 -> i64 -> i64
   val int_lt_u_i64 : i64 -> i64 -> bool
@@ -818,6 +854,8 @@ module WasmRef_Isa : sig
   val int_shl_i64 : i64 -> i64 -> i64
   val int_mul_i64 : i64 -> i64 -> i64
   val int_eqz_i64 : i64 -> bool
+  val rep_uint64 : int64 -> num1 bit0 bit0 bit0 bit0 bit0 bit0 word
+  val abs_uint64 : num1 bit0 bit0 bit0 bit0 bit0 bit0 word -> int64
   val int_ctz_i64 : i64 -> i64
   val int_clz_i64 : i64 -> i64
   val int_and_i64 : i64 -> i64 -> i64
@@ -950,17 +988,17 @@ module WasmRef_Isa : sig
   type res_step = Res_crash of res_error | Res_trap of string | Step_normal
   type label_context = Label_context of v list * b_e list * nat * b_e list
   type checker_type = TopType of ct list | Typea of t list | Bot
-  type frame_context_m =
-    Frame_context_m of
-      redex * label_context list * nat * v array * unit inst_m_ext
-  type config_m =
-    Config_m of nat * unit s_m_ext * frame_context_m * frame_context_m list
   type 'a t_context_ext =
     T_context_ext of
       tf list * tf list * unit tg_ext list * unit limit_t_ext list *
         unit limit_t_ext list * t list * (t list) list * (t list) option * 'a
   type res_inst_m = RI_crash_m of res_error | RI_trap_m of string |
     RI_res_m of unit inst_m_ext * unit module_export_ext list * e list
+  type frame_context_m =
+    Frame_context_m of
+      redex * label_context list * nat * v array * unit inst_m_ext
+  type config_m =
+    Config_m of nat * unit s_m_ext * frame_context_m * frame_context_m list
   val nth : 'a list -> nat -> 'a
   val zip : 'a list -> 'b list -> ('a * 'b) list
   val len : 'a heap -> 'a array -> (unit -> nat)
@@ -973,7 +1011,6 @@ module WasmRef_Isa : sig
   val last : 'a list -> 'a
   val take_tr : nat -> 'a list -> 'a list -> 'a list
   val take : nat -> 'a list -> 'a list
-  val cast : 'b len -> 'a len -> 'b word -> 'a word
   val map_option : ('a -> 'b) -> 'a option -> 'b option
   val those : ('a option) list -> ('a list) option
   val concat : ('a list) list -> 'a list
@@ -1241,6 +1278,10 @@ module WasmRef_Isa : sig
   val app_splat_vec : shape_vec -> v_num -> v_vec
   val typing : unit t_context_ext -> b_e list -> tf -> bool
   val make_empty_inst_m : (unit -> unit inst_m_ext)
+  val globs : 'a s_m_ext -> unit global_ext array
+  val funcs : 'a s_m_ext -> cl_m array
+  val tabs : 'a s_m_ext -> ((nat option) array * nat option) array
+  val mems : 'a s_m_ext -> (Bytes.t * nat option) array
   val globsa : 'a inst_m_ext -> nat array
   val funcsa : 'a inst_m_ext -> nat array
   val tabsa : 'a inst_m_ext -> nat array
@@ -1271,10 +1312,6 @@ module WasmRef_Isa : sig
   val alloc_mems_m :
     (Bytes.t * nat option) array ->
       nat -> unit limit_t_ext list -> (unit -> unit)
-  val globs : 'a s_m_ext -> unit global_ext array
-  val funcs : 'a s_m_ext -> cl_m array
-  val tabs : 'a s_m_ext -> ((nat option) array * nat option) array
-  val mems : 'a s_m_ext -> (Bytes.t * nat option) array
   val interp_alloc_module_m :
     unit s_m_ext ->
       unit m_ext ->
@@ -3004,13 +3041,6 @@ let rec push_bit_uint32
   n x = (if less_nat n (nat_of_integer (Z.of_int 32))
           then Uint32.shiftl x (integer_of_nat n) else Int32.zero);;
 
-let rec mask_uint32
-  n = (if equal_nat n zero_nat then Int32.zero
-        else Int32.logor (push_bit_uint32 (minus_nat n one_nata) Int32.one)
-               (mask_uint32 (minus_nat n one_nata)));;
-
-let rec take_bit_uint32 n a = Int32.logand a (mask_uint32 n);;
-
 let plus_uint32 = ({plus = Int32.add} : int32 plus);;
 
 let semigroup_add_uint32 =
@@ -3190,6 +3220,10 @@ and semiring_bits_uint32 () =
   ({semiring_parity_semiring_bits = (semiring_parity_uint32 ());
      bit = bit_uint32}
     : int32 semiring_bits)
+and mask_uint32
+  n = shiftr (semiring_bit_syntax_uint32 ()) (Int32.neg Int32.one)
+        (minus_nat (nat_of_integer (Z.of_int 32)) n)
+and take_bit_uint32 n a = Int32.logand a (mask_uint32 n)
 and semiring_bit_shifts_uint32 () =
   ({semiring_bits_semiring_bit_shifts = (semiring_bits_uint32 ());
      push_bit = push_bit_uint32; drop_bit = drop_bit_uint32;
@@ -3208,62 +3242,10 @@ let rec int_rem_u_i32
     (if (Int32.compare y Int32.zero = 0) then None
       else Some (I32_impl_abs (uint32_mod x y)));;
 
-let rec signed_modulo_word _A
-  x y = (let xa = the_signed_int _A x in
-         let ya = the_signed_int _A y in
-         let negative = less_int xa zero_inta in
-         let result = modulo_inta (abs_int xa) (abs_int ya) in
-          of_int _A (if negative then uminus_inta result else result));;
-
-let rec id x = (fun xa -> xa) x;;
-
-let rec foldr f x1 = match f, x1 with f, [] -> id
-                | f, x :: xs -> comp (f x) (foldr f xs);;
-
-let rec horner_sum _B
-  f a xs =
-    foldr (fun x b ->
-            plus _B.semiring_0_comm_semiring_0.comm_monoid_add_semiring_0.monoid_add_comm_monoid_add.semigroup_add_monoid_add.plus_semigroup_add
-              (f x)
-              (times
-                _B.semiring_0_comm_semiring_0.mult_zero_semiring_0.times_mult_zero
-                a b))
-      xs (zero _B.semiring_0_comm_semiring_0.mult_zero_semiring_0.zero_mult_zero);;
-
-let rec of_bool _A = function true -> one _A.one_zero_neq_one
-                     | false -> zero _A.zero_zero_neq_one;;
-
-let rec map f x1 = match f, x1 with f, [] -> []
-              | f, x21 :: x22 -> f x21 :: map f x22;;
-
-let rec upt i j = (if less_nat i j then i :: upt (suc i) j else []);;
-
-let rec set_bits_word _A
-  p = horner_sum (comm_semiring_0_word _A) (of_bool (zero_neq_one_word _A))
-        (of_int _A (Int_of_integer (Z.of_int 2)))
-        (map p (upt zero_nat (len_of _A.len0_len Type)));;
-
-let rec rep_uint32
-  x = set_bits_word
-        (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1)))))
-        (bit_uint32 x);;
-
-let rec abs_uint32
-  x = uint32
-        (integer_of_int
-          (the_int
-            (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1)))))
-            x));;
-
 let rec int_rem_s_i32
   (I32_impl_abs x) (I32_impl_abs y) =
     (if (Int32.compare y Int32.zero = 0) then None
-      else Some (I32_impl_abs
-                  (abs_uint32
-                    (signed_modulo_word
-                      (len_bit0
-                        (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1)))))
-                      (rep_uint32 x) (rep_uint32 y)))));;
+      else Some (I32_impl_abs (Int32.sub x (Int32.mul (Int32.div x y) y))));;
 
 let rec int_div_u_i32
   (I32_impl_abs x) (I32_impl_abs y) =
@@ -3278,41 +3260,22 @@ let rec int_div_s_i32
             (Int32.compare y (Int32.neg Int32.one) = 0)
       then None else Some (I32_impl_abs (Int32.div x y)));;
 
-let rec modulo_nat
-  m n = Nat (modulo_integer (integer_of_nat m) (integer_of_nat n));;
-
-let rec concat_bit n k l = or_int (take_bit_int n k) (push_bit_int n l);;
-
-let rec word_rotr _A
-  n w = Word (concat_bit
-               (minus_nat (len_of _A.len0_len Type)
-                 (modulo_nat n (len_of _A.len0_len Type)))
-               (drop_bit_int (modulo_nat n (len_of _A.len0_len Type))
-                 (the_int _A w))
-               (the_int _A
-                 (take_bit_word _A (modulo_nat n (len_of _A.len0_len Type))
-                   w)));;
-
 let rec int_rotr_i32
   (I32_impl_abs x) (I32_impl_abs y) =
     I32_impl_abs
-      (abs_uint32
-        (word_rotr
-          (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1)))))
-          (nat_of_uint32 y) (rep_uint32 x)));;
-
-let rec word_rotl _A
-  n = word_rotr _A
-        (minus_nat (len_of _A.len0_len Type)
-          (modulo_nat n (len_of _A.len0_len Type)));;
+      (let n = nat_of_uint32 (modulo_uint32a y (uint32 (Z.of_int 32))) in
+        Int32.logor (drop_bit_uint32 n x)
+          (push_bit_uint32 (minus_nat (nat_of_integer (Z.of_int 32)) n)
+            (take_bit_uint32 n x)));;
 
 let rec int_rotl_i32
   (I32_impl_abs x) (I32_impl_abs y) =
     I32_impl_abs
-      (abs_uint32
-        (word_rotl
-          (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1)))))
-          (nat_of_uint32 y) (rep_uint32 x)));;
+      (let n = nat_of_uint32 (modulo_uint32a y (uint32 (Z.of_int 32))) in
+        Int32.logor
+          (drop_bit_uint32 (minus_nat (nat_of_integer (Z.of_int 32)) n) x)
+          (push_bit_uint32 n
+            (take_bit_uint32 (minus_nat (nat_of_integer (Z.of_int 32)) n) x)));;
 
 let rec int_lt_u_i32 (I32_impl_abs x) (I32_impl_abs y) = Uint32.less x y;;
 
@@ -3365,6 +3328,11 @@ let rec gen_length n x1 = match n, x1 with n, x :: xs -> gen_length (suc n) xs
 
 let rec size_list x = gen_length zero_nat x;;
 
+let rec map f x1 = match f, x1 with f, [] -> []
+              | f, x21 :: x22 -> f x21 :: map f x22;;
+
+let rec upt i j = (if less_nat i j then i :: upt (suc i) j else []);;
+
 let rec fold f x1 s = match f, x1, s with f, x :: xs, s -> fold f xs (f x s)
                | f, [], s -> s;;
 
@@ -3377,6 +3345,41 @@ let rec takeWhile p x1 = match p, x1 with p, [] -> []
                     | p, x :: xs -> (if p x then x :: takeWhile p xs else []);;
 
 let rec word_ctz _A w = size_list (takeWhile not (rev (to_bl _A w)));;
+
+let rec id x = (fun xa -> xa) x;;
+
+let rec foldr f x1 = match f, x1 with f, [] -> id
+                | f, x :: xs -> comp (f x) (foldr f xs);;
+
+let rec horner_sum _B
+  f a xs =
+    foldr (fun x b ->
+            plus _B.semiring_0_comm_semiring_0.comm_monoid_add_semiring_0.monoid_add_comm_monoid_add.semigroup_add_monoid_add.plus_semigroup_add
+              (f x)
+              (times
+                _B.semiring_0_comm_semiring_0.mult_zero_semiring_0.times_mult_zero
+                a b))
+      xs (zero _B.semiring_0_comm_semiring_0.mult_zero_semiring_0.zero_mult_zero);;
+
+let rec of_bool _A = function true -> one _A.one_zero_neq_one
+                     | false -> zero _A.zero_zero_neq_one;;
+
+let rec set_bits_word _A
+  p = horner_sum (comm_semiring_0_word _A) (of_bool (zero_neq_one_word _A))
+        (of_int _A (Int_of_integer (Z.of_int 2)))
+        (map p (upt zero_nat (len_of _A.len0_len Type)));;
+
+let rec rep_uint32
+  x = set_bits_word
+        (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1)))))
+        (bit_uint32 x);;
+
+let rec abs_uint32
+  x = uint32
+        (integer_of_int
+          (the_int
+            (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1)))))
+            x));;
 
 let rec of_nat _A
   n = Word (take_bit_int (len_of _A.len0_len Type) (int_of_nat n));;
@@ -3572,30 +3575,10 @@ let rec int_rem_u_i64
     (if (Int64.compare y Int64.zero = 0) then None
       else Some (I64_impl_abs (uint64_mod x y)));;
 
-let rec rep_uint64
-  x = set_bits_word
-        (len_bit0
-          (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1))))))
-        (bit_uint64 x);;
-
-let rec abs_uint64
-  x = uint64
-        (integer_of_int
-          (the_int
-            (len_bit0
-              (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1))))))
-            x));;
-
 let rec int_rem_s_i64
   (I64_impl_abs x) (I64_impl_abs y) =
     (if (Int64.compare y Int64.zero = 0) then None
-      else Some (I64_impl_abs
-                  (abs_uint64
-                    (signed_modulo_word
-                      (len_bit0
-                        (len_bit0
-                          (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1))))))
-                      (rep_uint64 x) (rep_uint64 y)))));;
+      else Some (I64_impl_abs (Int64.sub x (Int64.mul (Int64.div x y) y))));;
 
 let rec uint64_div x y = fst (uint64_divmod x y);;
 
@@ -3613,23 +3596,203 @@ let rec int_div_s_i64
             (Int64.compare y (Int64.neg Int64.one) = 0)
       then None else Some (I64_impl_abs (Int64.div x y)));;
 
+let rec modulo_uint64a
+  x y = (if (Int64.compare y Int64.zero = 0) then x else uint64_mod x y);;
+
+let rec divide_uint64a
+  x y = (if (Int64.compare y Int64.zero = 0) then Int64.zero
+          else uint64_div x y);;
+
+let plus_uint64 = ({plus = Int64.add} : int64 plus);;
+
+let semigroup_add_uint64 =
+  ({plus_semigroup_add = plus_uint64} : int64 semigroup_add);;
+
+let cancel_semigroup_add_uint64 =
+  ({semigroup_add_cancel_semigroup_add = semigroup_add_uint64} :
+    int64 cancel_semigroup_add);;
+
+let ab_semigroup_add_uint64 =
+  ({semigroup_add_ab_semigroup_add = semigroup_add_uint64} :
+    int64 ab_semigroup_add);;
+
+let minus_uint64 = ({minus = Int64.sub} : int64 minus);;
+
+let cancel_ab_semigroup_add_uint64 =
+  ({ab_semigroup_add_cancel_ab_semigroup_add = ab_semigroup_add_uint64;
+     cancel_semigroup_add_cancel_ab_semigroup_add = cancel_semigroup_add_uint64;
+     minus_cancel_ab_semigroup_add = minus_uint64}
+    : int64 cancel_ab_semigroup_add);;
+
+let zero_uint64 = ({zero = Int64.zero} : int64 zero);;
+
+let monoid_add_uint64 =
+  ({semigroup_add_monoid_add = semigroup_add_uint64;
+     zero_monoid_add = zero_uint64}
+    : int64 monoid_add);;
+
+let comm_monoid_add_uint64 =
+  ({ab_semigroup_add_comm_monoid_add = ab_semigroup_add_uint64;
+     monoid_add_comm_monoid_add = monoid_add_uint64}
+    : int64 comm_monoid_add);;
+
+let cancel_comm_monoid_add_uint64 =
+  ({cancel_ab_semigroup_add_cancel_comm_monoid_add =
+      cancel_ab_semigroup_add_uint64;
+     comm_monoid_add_cancel_comm_monoid_add = comm_monoid_add_uint64}
+    : int64 cancel_comm_monoid_add);;
+
+let times_uint64 = ({times = Int64.mul} : int64 times);;
+
+let mult_zero_uint64 =
+  ({times_mult_zero = times_uint64; zero_mult_zero = zero_uint64} :
+    int64 mult_zero);;
+
+let semigroup_mult_uint64 =
+  ({times_semigroup_mult = times_uint64} : int64 semigroup_mult);;
+
+let semiring_uint64 =
+  ({ab_semigroup_add_semiring = ab_semigroup_add_uint64;
+     semigroup_mult_semiring = semigroup_mult_uint64}
+    : int64 semiring);;
+
+let semiring_0_uint64 =
+  ({comm_monoid_add_semiring_0 = comm_monoid_add_uint64;
+     mult_zero_semiring_0 = mult_zero_uint64;
+     semiring_semiring_0 = semiring_uint64}
+    : int64 semiring_0);;
+
+let semiring_0_cancel_uint64 =
+  ({cancel_comm_monoid_add_semiring_0_cancel = cancel_comm_monoid_add_uint64;
+     semiring_0_semiring_0_cancel = semiring_0_uint64}
+    : int64 semiring_0_cancel);;
+
+let ab_semigroup_mult_uint64 =
+  ({semigroup_mult_ab_semigroup_mult = semigroup_mult_uint64} :
+    int64 ab_semigroup_mult);;
+
+let comm_semiring_uint64 =
+  ({ab_semigroup_mult_comm_semiring = ab_semigroup_mult_uint64;
+     semiring_comm_semiring = semiring_uint64}
+    : int64 comm_semiring);;
+
+let comm_semiring_0_uint64 =
+  ({comm_semiring_comm_semiring_0 = comm_semiring_uint64;
+     semiring_0_comm_semiring_0 = semiring_0_uint64}
+    : int64 comm_semiring_0);;
+
+let comm_semiring_0_cancel_uint64 =
+  ({comm_semiring_0_comm_semiring_0_cancel = comm_semiring_0_uint64;
+     semiring_0_cancel_comm_semiring_0_cancel = semiring_0_cancel_uint64}
+    : int64 comm_semiring_0_cancel);;
+
+let one_uint64 = ({one = Int64.one} : int64 one);;
+
+let power_uint64 =
+  ({one_power = one_uint64; times_power = times_uint64} : int64 power);;
+
+let monoid_mult_uint64 =
+  ({semigroup_mult_monoid_mult = semigroup_mult_uint64;
+     power_monoid_mult = power_uint64}
+    : int64 monoid_mult);;
+
+let numeral_uint64 =
+  ({one_numeral = one_uint64; semigroup_add_numeral = semigroup_add_uint64} :
+    int64 numeral);;
+
+let semiring_numeral_uint64 =
+  ({monoid_mult_semiring_numeral = monoid_mult_uint64;
+     numeral_semiring_numeral = numeral_uint64;
+     semiring_semiring_numeral = semiring_uint64}
+    : int64 semiring_numeral);;
+
+let zero_neq_one_uint64 =
+  ({one_zero_neq_one = one_uint64; zero_zero_neq_one = zero_uint64} :
+    int64 zero_neq_one);;
+
+let semiring_1_uint64 =
+  ({semiring_numeral_semiring_1 = semiring_numeral_uint64;
+     semiring_0_semiring_1 = semiring_0_uint64;
+     zero_neq_one_semiring_1 = zero_neq_one_uint64}
+    : int64 semiring_1);;
+
+let semiring_1_cancel_uint64 =
+  ({semiring_0_cancel_semiring_1_cancel = semiring_0_cancel_uint64;
+     semiring_1_semiring_1_cancel = semiring_1_uint64}
+    : int64 semiring_1_cancel);;
+
+let dvd_uint64 = ({times_dvd = times_uint64} : int64 dvd);;
+
+let comm_monoid_mult_uint64 =
+  ({ab_semigroup_mult_comm_monoid_mult = ab_semigroup_mult_uint64;
+     monoid_mult_comm_monoid_mult = monoid_mult_uint64;
+     dvd_comm_monoid_mult = dvd_uint64}
+    : int64 comm_monoid_mult);;
+
+let comm_semiring_1_uint64 =
+  ({comm_monoid_mult_comm_semiring_1 = comm_monoid_mult_uint64;
+     comm_semiring_0_comm_semiring_1 = comm_semiring_0_uint64;
+     semiring_1_comm_semiring_1 = semiring_1_uint64}
+    : int64 comm_semiring_1);;
+
+let comm_semiring_1_cancel_uint64 =
+  ({comm_semiring_0_cancel_comm_semiring_1_cancel =
+      comm_semiring_0_cancel_uint64;
+     comm_semiring_1_comm_semiring_1_cancel = comm_semiring_1_uint64;
+     semiring_1_cancel_comm_semiring_1_cancel = semiring_1_cancel_uint64}
+    : int64 comm_semiring_1_cancel);;
+
+let divide_uint64 = ({divide = divide_uint64a} : int64 divide);;
+
+let modulo_uint64 =
+  ({divide_modulo = divide_uint64; dvd_modulo = dvd_uint64;
+     modulo = modulo_uint64a}
+    : int64 modulo);;
+
+let semiring_modulo_uint64 =
+  ({comm_semiring_1_cancel_semiring_modulo = comm_semiring_1_cancel_uint64;
+     modulo_semiring_modulo = modulo_uint64}
+    : int64 semiring_modulo);;
+
+let semiring_parity_uint64 =
+  ({semiring_modulo_semiring_parity = semiring_modulo_uint64} :
+    int64 semiring_parity);;
+
+let semiring_bits_uint64 =
+  ({semiring_parity_semiring_bits = semiring_parity_uint64; bit = bit_uint64} :
+    int64 semiring_bits);;
+
+let rec take_bit_uint64 n a = Int64.logand a (mask_uint64 n)
+and semiring_bit_shifts_uint64 () =
+  ({semiring_bits_semiring_bit_shifts = semiring_bits_uint64;
+     push_bit = push_bit_uint64; drop_bit = drop_bit_uint64;
+     take_bit = take_bit_uint64}
+    : int64 semiring_bit_shifts)
+and semiring_bit_syntax_uint64 () =
+  ({semiring_bit_shifts_semiring_bit_syntax = (semiring_bit_shifts_uint64 ())} :
+    int64 semiring_bit_syntax)
+and mask_uint64
+  n = shiftr (semiring_bit_syntax_uint64 ()) (Int64.neg Int64.one)
+        (minus_nat (nat_of_integer (Z.of_int 64)) n);;
+let semiring_bit_shifts_uint64 = semiring_bit_shifts_uint64 ();;
+let semiring_bit_syntax_uint64 = semiring_bit_syntax_uint64 ();;
+
 let rec int_rotr_i64
   (I64_impl_abs x) (I64_impl_abs y) =
     I64_impl_abs
-      (abs_uint64
-        (word_rotr
-          (len_bit0
-            (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1))))))
-          (nat_of_uint64 y) (rep_uint64 x)));;
+      (let n = nat_of_uint64 (modulo_uint64a y (uint64 (Z.of_int 64))) in
+        Int64.logor (drop_bit_uint64 n x)
+          (push_bit_uint64 (minus_nat (nat_of_integer (Z.of_int 64)) n)
+            (take_bit_uint64 n x)));;
 
 let rec int_rotl_i64
   (I64_impl_abs x) (I64_impl_abs y) =
     I64_impl_abs
-      (abs_uint64
-        (word_rotl
-          (len_bit0
-            (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1))))))
-          (nat_of_uint64 y) (rep_uint64 x)));;
+      (let n = nat_of_uint64 (modulo_uint64a y (uint64 (Z.of_int 64))) in
+        Int64.logor
+          (drop_bit_uint64 (minus_nat (nat_of_integer (Z.of_int 64)) n) x)
+          (push_bit_uint64 n
+            (take_bit_uint64 (minus_nat (nat_of_integer (Z.of_int 64)) n) x)));;
 
 let rec int_lt_u_i64 (I64_impl_abs x) (I64_impl_abs y) = Uint64.less x y;;
 
@@ -3676,6 +3839,20 @@ let rec int_mul_i64
   (I64_impl_abs x) (I64_impl_abs y) = I64_impl_abs (Int64.mul x y);;
 
 let rec int_eqz_i64 (I64_impl_abs x) = (Int64.compare x Int64.zero = 0);;
+
+let rec rep_uint64
+  x = set_bits_word
+        (len_bit0
+          (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1))))))
+        (bit_uint64 x);;
+
+let rec abs_uint64
+  x = uint64
+        (integer_of_int
+          (the_int
+            (len_bit0
+              (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1))))))
+            x));;
 
 let rec int_ctz_i64
   (I64_impl_abs x) =
@@ -3889,7 +4066,7 @@ and host =
   Abs_host_m of
     (unit s_m_ext * v list -> (unit -> ((unit s_m_ext * v list) option)));;
 
-let rec typerep_cl_ma t = Typerep ("Wasm_Interpreter_Monad.cl_m", []);;
+let rec typerep_cl_ma t = Typerep ("Wasm_Interpreter_Monad_Config.cl_m", []);;
 
 let countable_cl_m = (() : cl_m countable);;
 
@@ -3956,13 +4133,6 @@ type label_context = Label_context of v list * b_e list * nat * b_e list;;
 
 type checker_type = TopType of ct list | Typea of t list | Bot;;
 
-type frame_context_m =
-  Frame_context_m of
-    redex * label_context list * nat * v array * unit inst_m_ext;;
-
-type config_m =
-  Config_m of nat * unit s_m_ext * frame_context_m * frame_context_m list;;
-
 type 'a t_context_ext =
   T_context_ext of
     tf list * tf list * unit tg_ext list * unit limit_t_ext list *
@@ -3970,6 +4140,13 @@ type 'a t_context_ext =
 
 type res_inst_m = RI_crash_m of res_error | RI_trap_m of string |
   RI_res_m of unit inst_m_ext * unit module_export_ext list * e list;;
+
+type frame_context_m =
+  Frame_context_m of
+    redex * label_context list * nat * v array * unit inst_m_ext;;
+
+type config_m =
+  Config_m of nat * unit s_m_ext * frame_context_m * frame_context_m list;;
 
 let rec nth
   x0 n = match x0, n with [], n -> failwith "nth"
@@ -4018,9 +4195,6 @@ let rec take_tr
           else take_tr (minus_nat n one_nata) xs (x :: acc_r));;
 
 let rec take n xs = take_tr n xs [];;
-
-let rec cast _B _A
-  w = Word (take_bit_int (len_of _A.len0_len Type) (the_int _B w));;
 
 let rec map_option f x1 = match f, x1 with f, None -> None
                      | f, Some x2 -> Some (f x2);;
@@ -4237,13 +4411,7 @@ let rec isabelle_i64_trunc_s_f32
 let rec si64_trunc_f32 x = isabelle_i64_trunc_s_f32 x;;
 
 let rec wasm_extend_u
-  (I32_impl_abs x) =
-    I64_impl_abs
-      (abs_uint64
-        (cast (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1)))))
-          (len_bit0
-            (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1))))))
-          (rep_uint32 x)));;
+  (I32_impl_abs x) = I64_impl_abs (uint64 (integer_of_uint32 x));;
 
 let rec wasm_extend_s
   (I32_impl_abs x) =
@@ -4323,13 +4491,7 @@ let rec isabelle_i32_trunc_s_f32
 let rec si32_trunc_f32 x = isabelle_i32_trunc_s_f32 x;;
 
 let rec wasm_wrap
-  (I64_impl_abs x) =
-    I32_impl_abs
-      (abs_uint32
-        (cast (len_bit0
-                (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1))))))
-          (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1)))))
-          (rep_uint64 x)));;
+  (I64_impl_abs x) = I32_impl_abs (uint32 (integer_of_uint64 x));;
 
 let rec cvt_i32
   sat_sx v =
@@ -5499,6 +5661,14 @@ let make_empty_inst_m : (unit -> unit inst_m_ext)
           (fun () -> a))
           ()));;
 
+let rec globs (S_m_ext (funcs, tabs, mems, globs, more)) = globs;;
+
+let rec funcs (S_m_ext (funcs, tabs, mems, globs, more)) = funcs;;
+
+let rec tabs (S_m_ext (funcs, tabs, mems, globs, more)) = tabs;;
+
+let rec mems (S_m_ext (funcs, tabs, mems, globs, more)) = mems;;
+
 let rec globsa (Inst_m_ext (types, funcs, tabs, mems, globs, more)) = globs;;
 
 let rec funcsa (Inst_m_ext (types, funcs, tabs, mems, globs, more)) = funcs;;
@@ -5584,14 +5754,6 @@ let rec alloc_mems_m
         (let m = new_zeroed_byte_array (times_nata (l_min mt) ki64) () in
           (m, l_max mt)))
       s_mems n;;
-
-let rec globs (S_m_ext (funcs, tabs, mems, globs, more)) = globs;;
-
-let rec funcs (S_m_ext (funcs, tabs, mems, globs, more)) = funcs;;
-
-let rec tabs (S_m_ext (funcs, tabs, mems, globs, more)) = tabs;;
-
-let rec mems (S_m_ext (funcs, tabs, mems, globs, more)) = mems;;
 
 let rec interp_alloc_module_m
   s_m m imps gvs =
@@ -7651,37 +7813,25 @@ let rec run_fuzz
       (let a = interp_instantiate_init_m s m v_imps () in
         (match a with (sa, RI_crash_m res) -> (fun () -> (sa, RCrash res))
           | (sa, RI_trap_m msg) -> (fun () -> (sa, RTrap msg))
-          | (sa, RI_res_m (inst, v_exps, init_es)) ->
-            (fun f_ () -> f_ ((run_instantiate_m n d (sa, (inst, init_es))) ())
-              ())
-              (fun aa ->
-                (match aa
-                  with (sb, RCrash res_error) ->
-                    (fun () -> (sb, RCrash res_error))
-                  | (sb, RTrap literal) -> (fun () -> (sb, RTrap literal))
-                  | (sb, RValue []) ->
-                    (match
-                      find (fun exp ->
-                             (match e_desc exp with Ext_func _ -> true
-                               | Ext_tab _ -> false | Ext_mem _ -> false
-                               | Ext_glob _ -> false))
-                        v_exps
-                      with None ->
-                        (fun () ->
-                          (sb, RCrash (Error_invariant "no import to invoke")))
-                      | Some exp ->
-                        (let Ext_func i = e_desc exp in
-                          (fun f_ () -> f_ ((array_nth heap_cl_m (funcs sb) i)
-                            ()) ())
-                            (fun cl ->
-                              (let Tf (t1, _) = cl_m_type cl in
-                               let params =
-                                 (match opt_vs with None -> map bitzero t1
-                                   | Some ab -> rev ab)
-                                 in
-                                run_invoke_v_m n d (sb, (params, i))))))
-                  | (sb, RValue (_ :: _)) ->
-                    (fun () -> (sb, RCrash (Error_invalid "start function"))))))
+          | (sa, RI_res_m (_, v_exps, _)) ->
+            (match
+              find (fun exp ->
+                     (match e_desc exp with Ext_func _ -> true
+                       | Ext_tab _ -> false | Ext_mem _ -> false
+                       | Ext_glob _ -> false))
+                v_exps
+              with None ->
+                (fun () -> (sa, RCrash (Error_invariant "no import to invoke")))
+              | Some exp ->
+                (let Ext_func i = e_desc exp in
+                  (fun f_ () -> f_ ((array_nth heap_cl_m (funcs sa) i) ()) ())
+                    (fun cl ->
+                      (let Tf (t1, _) = cl_m_type cl in
+                       let params =
+                         (match opt_vs with None -> map bitzero t1
+                           | Some aa -> rev aa)
+                         in
+                        run_invoke_v_m n d (sa, (params, i)))))))
           ()));;
 
 let rec run_m
