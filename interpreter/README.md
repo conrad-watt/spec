@@ -1,3 +1,7 @@
+# Wasmtime fuzzing
+
+If you're here to see the Wasmtime fuzz oracle, you should look at the [wasmtime_fuzzing](https://github.com/conrad-watt/spec/tree/wasmtime_fuzzing/interpreter) branch.
+
 # WebAssembly Reference Interpreter
 
 This repository implements a interpreter for WebAssembly. It is written for clarity and simplicity, _not_ speed. It is intended as a playground for trying out ideas and a device for nailing down the exact semantics, and as a proxy for the (yet to be produced) formal specification of WebAssembly. For that purpose, the code is written in a fairly declarative, "speccy" way.
