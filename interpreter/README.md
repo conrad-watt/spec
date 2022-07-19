@@ -1,6 +1,6 @@
 #  Verified executable interpreter
 
-This is a fork of the official reference interpreter which can optionally execute the provided Wasm program using my verified Isabelle interpreter. It is built as normal. A new command-line flag has been added, `-isa`, which will use the extracted Isabelle definitions when enabled. Note: we recommend OCaml 4.11.2 with this version of the interpreter. Newer versions may also work, Note also that this version of the interpreter has a dependency on [Zarith](https://opam.ocaml.org/packages/zarith/).
+This is a fork of the official reference interpreter which can optionally execute the provided Wasm program using my verified Isabelle interpreter. It is built as normal. A new command-line flag has been added, `-isa`, which will use the extracted Isabelle definitions when enabled. Note: we recommend OCaml 4.11.2 with this version of the interpreter. Newer versions of OCaml may also work. Note also that this version of the interpreter has a dependency on [Zarith](https://opam.ocaml.org/packages/zarith/).
 
 The extracted verified code, and harness, can be found [here](https://github.com/conrad-watt/spec/tree/conrad-new-interpreter/interpreter/verified).
 
