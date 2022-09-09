@@ -403,12 +403,17 @@ let convert_export_desc edesc =
   | Ast.MemoryExport v -> Ext_mem (var_to_nat v)
   | Ast.GlobalExport v -> Ext_glob (var_to_nat v)
 
+let unescaped_string_of_name name =
+  let b = Buffer.create 16 in
+  List.iter (fun c -> (Buffer.add_char b (Char.chr c))) name;
+  Buffer.contents b
+
 let convert_export exp =
   let {
     Ast.name;
     Ast.edesc;
   } = exp.it in
-  Module_export_ext ((Ast.string_of_name name), (convert_export_desc edesc), ())
+  Module_export_ext ((unescaped_string_of_name name), (convert_export_desc edesc), ())
 
 let convert_import_desc idesc =
   match idesc.it with
@@ -423,7 +428,7 @@ let convert_import imp =
     Ast.item_name;
     Ast.idesc;
   } = imp.it in
-  Module_import_ext ((Ast.string_of_name module_name), (Ast.string_of_name item_name), (convert_import_desc idesc), ())
+  Module_import_ext ((unescaped_string_of_name module_name), (unescaped_string_of_name item_name), (convert_import_desc idesc), ())
 
 let convert_module (modul : Ast.module_') : unit m_ext =
   let {
