@@ -405,7 +405,7 @@ let convert_export_desc edesc =
 
 let unescaped_string_of_name name =
   let b = Buffer.create 16 in
-  List.iter (fun c -> (Buffer.add_char b (Char.chr c))) name;
+  List.iter (fun c -> (Buffer.add_utf_8_uchar b (Uchar.of_int c))) name;
   Buffer.contents b
 
 let convert_export exp =
