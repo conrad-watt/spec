@@ -737,7 +737,7 @@ let check_module (m : module_) =
   require (List.length c.memories <= 1) m.at
     "multiple memories are not allowed (yet)"
 
-let check_module_isa (m_isa : (unit WasmRef_Isa_m.WasmRef_Isa.m_ext)) =
-  match (WasmRef_Isa_m.WasmRef_Isa.module_type_checker m_isa) with
+let check_module_isa (m_isa : (unit WasmRef_Isa.WasmRef_Isa.m_ext)) =
+  match (WasmRef_Isa.WasmRef_Isa.module_type_checker m_isa) with
   | Some _ -> ()
   | None -> error no_region "Isabelle Validation"

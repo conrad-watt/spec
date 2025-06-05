@@ -1,4 +1,4 @@
-open WasmRef_Isa_m.WasmRef_Isa
+open WasmRef_Isa.WasmRef_Isa
 open Source
 open Types
 open Values
@@ -16,9 +16,14 @@ let convert_t_vec = function
   | V128Type -> T_v128
   | _ -> raise PostMVP
 
+let convert_t_ref = function
+  | FuncRefType -> T_func_ref
+  | ExternRefType -> T_ext_ref
+
 let convert_t = function
   | NumType t -> T_num (convert_t_num t)
   | VecType t -> T_vec (convert_t_vec t)
+  | RefType t -> T_ref (convert_t_ref t)
   | _ -> raise PostMVP
 
 let convert_vltype vl_type = List.map convert_t vl_type
@@ -273,9 +278,10 @@ let rec convert_instr instr =
 	| Ast.BrTable (ns, n) -> Br_table (List.map var_to_nat ns, var_to_nat n)
 	| Ast.Return -> Return
 	| Ast.Call n -> Call (var_to_nat n)
-	| Ast.CallIndirect(n, y) -> (if (n.it)=0l then Call_indirect (var_to_nat y) else raise PostMVP)
+	| Ast.CallIndirect(n, y) -> Call_indirect (var_to_nat n, var_to_nat y)
 	| Ast.Drop -> Drop
-	| Ast.Select None -> Select
+	| Ast.Select None -> Select None
+  | Ast.Select (Some [t]) -> Select (Some (convert_t t))
 	| Ast.LocalGet n -> Get_local (var_to_nat n)
 	| Ast.LocalSet n -> Set_local (var_to_nat n)
 	| Ast.LocalTee n -> Tee_local (var_to_nat n)
@@ -287,14 +293,14 @@ let rec convert_instr instr =
 	                   Store ((convert_t_num ty), convert_store_tp pack, (ocaml_int_to_nat align), (ocaml_int32_to_nat offset))
 	| Ast.MemorySize -> Current_memory
 	| Ast.MemoryGrow -> Grow_memory
-	| Ast.Const v -> EConst (V_num (convert_value_num v.it))
+	| Ast.Const v -> EConstNum (convert_value_num v.it)
 	| Ast.Test top -> convert_testop top
 	| Ast.Compare cop -> convert_compareop cop
 	| Ast.Unary uop -> convert_unop uop
 	| Ast.Binary bop -> convert_binop bop
 	| Ast.Convert cop -> convert_convertop cop
 
-	| Ast.VecConst v -> EConst (V_vec (convert_value_vec v.it))
+	| Ast.VecConst v -> EConstVec (convert_value_vec v.it)
         | Ast.VecTest op -> Test_vec (V128Wrapper.Testop_VecTest op)
         | Ast.VecTestBits op -> Test_vec (V128Wrapper.Testop_VecTestBits op)
         | Ast.VecBitmask op -> Test_vec (V128Wrapper.Testop_VecBitmask op)
@@ -345,7 +351,7 @@ let convert_limit lim =
 
 let convert_tt tt =
   match tt with
-  | TableType (lim, _) -> convert_limit lim
+  | TableType (lim, tr) -> T_tab (convert_limit lim, convert_t_ref tr)
 
 let convert_tab tab =
   convert_tt ((tab.it).Ast.ttype)
@@ -367,32 +373,36 @@ let convert_func' func =
 
 let convert_func func = convert_func' (func.it)
 
+let convert_emode' emode =
+    match emode with
+    | Ast.Passive -> Em_passive
+    | Ast.Active {index; offset; } -> Em_active (var_to_nat index, convert_instrs offset.it)
+    | Ast.Declarative -> Em_declarative
+
 let convert_elem' elem =
   let {
     Ast.etype;
     Ast.einit;
     Ast.emode;
-  } = elem in
-  match etype with
-  | FuncRefType->
-    (match emode.it with
-     | Ast.Active {index; offset; } ->
-         Module_elem_ext (var_to_nat index, convert_instrs offset.it, List.map conv_elem_init einit, ())
-     | _ -> raise PostMVP)
-  | _ -> raise PostMVP
-
+  } = elem in Module_elem_ext (convert_t_ref etype, List.map (fun x -> convert_instrs x.it) einit, convert_emode' emode.it, ())
 
 let convert_elem elem = convert_elem' (elem.it)
+
+let convert_dmode' dmode =
+  match dmode with
+  | Ast.Passive -> Dm_passive
+  | Ast.Active {index; offset; } -> Dm_active (var_to_nat index, convert_instrs offset.it)
+(** There are no declarative data segments *)
 
 let convert_data' data =
  let {
     Ast.dinit;
     Ast.dmode;
-  } = data in
-  (match dmode.it with
+  } = data in Module_data_ext (List.map ocaml_char_to_isabelle_byte (LibAux.string_explode dinit), convert_dmode' dmode.it, ())
+  (* (match dmode.it with
    | Ast.Active {index; offset; } ->
-       Module_data_ext (var_to_nat index, convert_instrs offset.it, List.map ocaml_char_to_isabelle_byte (LibAux.string_explode dinit), ())
-   | _ -> raise PostMVP)
+       Module_data_ext (List.map ocaml_char_to_isabelle_byte (LibAux.string_explode dinit), convert_dmode' dmode.it, ())
+   | _ -> raise PostMVP) *)
 
 let convert_data data = convert_data' (data.it)
 
