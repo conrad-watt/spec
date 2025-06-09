@@ -325,6 +325,21 @@ let rec convert_instr instr =
         | Ast.VecStoreLane slop -> let ({Ast.ty; Ast.align; Ast.offset; Ast.pack},n) = slop in
                                   Store_vec (Store_lane ((convert_pack_size_to_shape_vec_i pack), (ocaml_int_to_nat n)), (ocaml_int_to_nat align), (ocaml_int32_to_nat offset))
 
+        | Ast.ElemDrop x -> Elem_drop (var_to_nat x)
+        | Ast.DataDrop x -> Data_drop (var_to_nat x)
+        | Ast.RefFunc x -> Ref_func (var_to_nat x)
+        | Ast.RefIsNull -> Ref_is_null
+        | Ast.RefNull t -> Ref_null (convert_t_ref t)
+        | Ast.MemoryFill -> Memory_fill 
+        | Ast.MemoryInit x -> Memory_init (var_to_nat x)
+        | Ast.MemoryCopy -> Memory_copy
+        | Ast.TableGet x -> Table_get (var_to_nat x)
+        | Ast.TableSet x -> Table_set (var_to_nat x)
+        | Ast.TableSize x -> Table_size (var_to_nat x)
+        | Ast.TableGrow x -> Table_grow (var_to_nat x)
+        | Ast.TableFill x -> Table_fill (var_to_nat x)
+        | Ast.TableCopy (x, y) -> Table_copy (var_to_nat x, var_to_nat y)
+        | Ast.TableInit (x, y) -> Table_init (var_to_nat x, var_to_nat y)
         | _ -> raise PostMVP
 
 and convert_instrs instrs = List.map convert_instr instrs

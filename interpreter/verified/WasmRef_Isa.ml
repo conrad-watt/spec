@@ -98,30 +98,26 @@ let shiftr x n = Z.shift_right x (Z.to_int n);;
 end;; (*struct Integer_Bit*)
 
 module WasmRef_Isa : sig
-  type num = One | Bit0 of num | Bit1 of num
-  val equal_num : num -> num -> bool
-  type int = Zero_int | Pos of num | Nega of num
+  type int = Int_of_integer of Z.t
+  val integer_of_int : int -> Z.t
   val equal_inta : int -> int -> bool
   type 'a equal = {equal : 'a -> 'a -> bool}
   val equal : 'a equal -> 'a -> 'a -> bool
   val equal_int : int equal
-  val plus_num : num -> num -> num
-  val times_num : num -> num -> num
   val times_inta : int -> int -> int
   type 'a times = {times : 'a -> 'a -> 'a}
   val times : 'a times -> 'a -> 'a -> 'a
   type 'a dvd = {times_dvd : 'a times}
   val times_int : int times
   val dvd_int : int dvd
+  type num = One | Bit0 of num | Bit1 of num
   val one_inta : int
   type 'a one = {one : 'a}
   val one : 'a one -> 'a
   val one_int : int one
   val uminus_inta : int -> int
-  val bitM : num -> num
-  val dup : int -> int
   val minus_inta : int -> int -> int
-  val sub : num -> num -> int
+  val zero_inta : int
   val plus_inta : int -> int -> int
   type 'a uminus = {uminus : 'a -> 'a}
   val uminus : 'a uminus -> 'a -> 'a
@@ -193,25 +189,16 @@ module WasmRef_Isa : sig
   val numeral_int : int numeral
   type 'a power = {one_power : 'a one; times_power : 'a times}
   val power_int : int power
-  val less_eq_num : num -> num -> bool
-  val less_num : num -> num -> bool
-  val less_eq_int : int -> int -> bool
-  val less_int : int -> int -> bool
-  val abs_int : int -> int
-  val divmod_step_int : int -> int * int -> int * int
-  val divmod_int : num -> num -> int * int
+  val apsnd : ('a -> 'b) -> 'c * 'a -> 'c * 'b
+  val divmod_integer : Z.t -> Z.t -> Z.t * Z.t
   val fst : 'a * 'b -> 'a
-  type 'a zero_neq_one =
-    {one_zero_neq_one : 'a one; zero_zero_neq_one : 'a zero}
-  val of_bool : 'a zero_neq_one -> bool -> 'a
-  val zero_neq_one_int : int zero_neq_one
-  val adjust_div : int * int -> int
+  val divide_integer : Z.t -> Z.t -> Z.t
   val divide_inta : int -> int -> int
   type 'a divide = {divide : 'a -> 'a -> 'a}
   val divide : 'a divide -> 'a -> 'a -> 'a
   val divide_int : int divide
   val snd : 'a * 'b -> 'b
-  val adjust_mod : num -> int -> int
+  val modulo_integer : Z.t -> Z.t -> Z.t
   val modulo_inta : int -> int -> int
   type 'a modulo =
     {divide_modulo : 'a divide; dvd_modulo : 'a dvd; modulo : 'a -> 'a -> 'a}
@@ -224,6 +211,8 @@ module WasmRef_Isa : sig
     {monoid_mult_semiring_numeral : 'a monoid_mult;
       numeral_semiring_numeral : 'a numeral;
       semiring_semiring_numeral : 'a semiring}
+  type 'a zero_neq_one =
+    {one_zero_neq_one : 'a one; zero_zero_neq_one : 'a zero}
   type 'a semiring_1 =
     {semiring_numeral_semiring_1 : 'a semiring_numeral;
       semiring_0_semiring_1 : 'a semiring_0;
@@ -238,6 +227,7 @@ module WasmRef_Isa : sig
       semiring_1_cancel_ring_1 : 'a semiring_1_cancel}
   val monoid_mult_int : int monoid_mult
   val semiring_numeral_int : int semiring_numeral
+  val zero_neq_one_int : int zero_neq_one
   val semiring_1_int : int semiring_1
   val semiring_1_cancel_int : int semiring_1_cancel
   val neg_numeral_int : int neg_numeral
@@ -332,6 +322,17 @@ module WasmRef_Isa : sig
   val semidom_modulo_int : int semidom_modulo
   type nat = Nat of Z.t
   val integer_of_nat : nat -> Z.t
+  val bit_integer : Z.t -> nat -> bool
+  val bit_int : int -> nat -> bool
+  type 'a semiring_bits =
+    {semiring_parity_semiring_bits : 'a semiring_parity;
+      semiring_modulo_trivial_semiring_bits : 'a semiring_modulo_trivial;
+      bit : 'a -> nat -> bool}
+  val bit : 'a semiring_bits -> 'a -> nat -> bool
+  val semiring_bits_int : int semiring_bits
+  val push_bit_integer : nat -> Z.t -> Z.t
+  val unset_bit_integer : nat -> Z.t -> Z.t
+  val unset_bit_int : nat -> int -> int
   type 'a ord = {less_eq : 'a -> 'a -> bool; less : 'a -> 'a -> bool}
   val less_eq : 'a ord -> 'a -> 'a -> bool
   val less : 'a ord -> 'a -> 'a -> bool
@@ -341,34 +342,25 @@ module WasmRef_Isa : sig
   val equal_nata : nat -> nat -> bool
   val zero_nat : nat
   val one_nata : nat
-  val inc : num -> num
-  val bit_int : int -> nat -> bool
-  type 'a semiring_bits =
-    {semiring_parity_semiring_bits : 'a semiring_parity;
-      semiring_modulo_trivial_semiring_bits : 'a semiring_modulo_trivial;
-      bit : 'a -> nat -> bool}
-  val bit : 'a semiring_bits -> 'a -> nat -> bool
-  val semiring_bits_int : int semiring_bits
+  val power : 'a power -> 'a -> nat -> 'a
+  val one_integera : Z.t
+  val times_integer : Z.t times
+  val one_integer : Z.t one
+  val power_integer : Z.t power
+  val take_bit_integer : nat -> Z.t -> Z.t
+  val take_bit_int : nat -> int -> int
   val push_bit_int : nat -> int -> int
-  val or_num : num -> num -> num
-  val numeral : 'a numeral -> num -> 'a
-  val suba : 'a neg_numeral -> num -> num -> 'a
-  val not_int : int -> int
-  val map_option : ('a -> 'b) -> 'a option -> 'b option
-  val and_not_num : num -> num -> num option
-  val or_not_num_neg : num -> num -> num
-  val and_num : num -> num -> num option
+  val flip_bit_integer : nat -> Z.t -> Z.t
+  val flip_bit_int : nat -> int -> int
+  val drop_bit_integer : nat -> Z.t -> Z.t
+  val drop_bit_int : nat -> int -> int
+  val set_bit_integer : nat -> Z.t -> Z.t
+  val set_bit_int : nat -> int -> int
+  val mask_integer : nat -> Z.t
+  val mask_int : nat -> int
+  val xor_int : int -> int -> int
   val and_int : int -> int -> int
   val or_int : int -> int -> int
-  val unset_bit_int : nat -> int -> int
-  val power : 'a power -> 'a -> nat -> 'a
-  val take_bit_int : nat -> int -> int
-  val xor_num : num -> num -> num option
-  val xor_int : int -> int -> int
-  val flip_bit_int : nat -> int -> int
-  val drop_bit_int : nat -> int -> int
-  val set_bit_int : nat -> int -> int
-  val mask_int : nat -> int
   type 'a semiring_bit_operations =
     {semiring_bits_semiring_bit_operations : 'a semiring_bits;
       anda : 'a -> 'a -> 'a; ora : 'a -> 'a -> 'a; xor : 'a -> 'a -> 'a;
@@ -385,6 +377,7 @@ module WasmRef_Isa : sig
   val push_bit : 'a semiring_bit_operations -> nat -> 'a -> 'a
   val drop_bit : 'a semiring_bit_operations -> nat -> 'a -> 'a
   val take_bit : 'a semiring_bit_operations -> nat -> 'a -> 'a
+  val not_int : int -> int
   type 'a ring_bit_operations =
     {semiring_bit_operations_ring_bit_operations : 'a semiring_bit_operations;
       ring_parity_ring_bit_operations : 'a ring_parity; nota : 'a -> 'a}
@@ -484,24 +477,18 @@ module WasmRef_Isa : sig
   val len0_i32 : i32 len0
   val len_i32 : i32 len
   val bit_uint32 : int32 -> nat -> bool
-  val bit_integer : Z.t -> nat -> bool
   val uint32 : Z.t -> int32
   val integer_of_uint32 : int32 -> Z.t
   val nat_of_uint32 : int32 -> nat
   val nat_of_int_i32 : i32 -> nat
   val plus_nat : nat -> nat -> nat
   val fold_atLeastAtMost_nat : (nat -> 'a -> 'a) -> nat -> nat -> 'a -> 'a
-  val apsnd : ('a -> 'b) -> 'c * 'a -> 'c * 'b
-  val divmod_integer : Z.t -> Z.t -> Z.t * Z.t
-  val int_of_integer : Z.t -> int
   val int_of_nat : nat -> int
-  val integer_of_int : int -> Z.t
   val uint32_of_int : int -> int32
   val comp : ('a -> 'b) -> ('c -> 'a) -> 'c -> 'b
   val uint32_of_nat : nat -> int32
   val int_popcnt_i32 : i32 -> i32
   val int_of_nat_i32 : nat -> i32
-  val modulo_integer : Z.t -> Z.t -> Z.t
   val int_shr_u_i32 : i32 -> i32 -> i32
   val int_shr_s_i32 : i32 -> i32 -> i32
   val push_bit_uint32 : nat -> int32 -> int32
@@ -551,6 +538,7 @@ module WasmRef_Isa : sig
   val id : 'a -> 'a
   val foldr : ('a -> 'b -> 'b) -> 'a list -> 'b -> 'b
   val horner_sum : 'b comm_semiring_0 -> ('a -> 'b) -> 'b -> 'a list -> 'b
+  val of_bool : 'a zero_neq_one -> bool -> 'a
   val set_bits_word : 'a len -> (nat -> bool) -> 'a word
   type num1 = One_num1
   type 'a finite = unit
@@ -814,6 +802,7 @@ module WasmRef_Isa : sig
   val maps : ('a -> 'b list) -> 'a list -> 'b list
   val take_tr : nat -> 'a list -> 'a list -> 'a list
   val take : nat -> 'a list -> 'a list
+  val map_option : ('a -> 'b) -> 'a option -> 'b option
   val those : ('a option) list -> ('a list) option
   val concat : ('a list) list -> 'a list
   val member : 'a equal -> 'a list -> 'a -> bool
@@ -1020,7 +1009,6 @@ module WasmRef_Isa : sig
   val funcsa : 'a inst_ext -> nat list
   val globsa : 'a inst_ext -> nat list
   val types : 'a inst_ext -> tf list
-  val divide_integer : Z.t -> Z.t -> Z.t
   val divide_nat : nat -> nat -> nat
   val l_min_update : (nat -> nat) -> 'a limit_t_ext -> 'a limit_t_ext
   val app_rev_tr : 'a list -> 'a list -> 'a list
@@ -1454,61 +1442,19 @@ module WasmRef_Isa : sig
     unit s_ext -> unit m_ext -> v_ext list -> unit s_ext * res_inst
 end = struct
 
-type num = One | Bit0 of num | Bit1 of num;;
+type int = Int_of_integer of Z.t;;
 
-let rec equal_num x0 x1 = match x0, x1 with Bit0 x2, Bit1 x3 -> false
-                    | Bit1 x3, Bit0 x2 -> false
-                    | One, Bit1 x3 -> false
-                    | Bit1 x3, One -> false
-                    | One, Bit0 x2 -> false
-                    | Bit0 x2, One -> false
-                    | Bit1 x3, Bit1 y3 -> equal_num x3 y3
-                    | Bit0 x2, Bit0 y2 -> equal_num x2 y2
-                    | One, One -> true;;
+let rec integer_of_int (Int_of_integer k) = k;;
 
-type int = Zero_int | Pos of num | Nega of num;;
-
-let rec equal_inta x0 x1 = match x0, x1 with Nega k, Nega l -> equal_num k l
-                     | Nega k, Pos l -> false
-                     | Nega k, Zero_int -> false
-                     | Pos k, Nega l -> false
-                     | Pos k, Pos l -> equal_num k l
-                     | Pos k, Zero_int -> false
-                     | Zero_int, Nega l -> false
-                     | Zero_int, Pos l -> false
-                     | Zero_int, Zero_int -> true;;
+let rec equal_inta k l = Z.equal (integer_of_int k) (integer_of_int l);;
 
 type 'a equal = {equal : 'a -> 'a -> bool};;
 let equal _A = _A.equal;;
 
 let equal_int = ({equal = equal_inta} : int equal);;
 
-let rec plus_num
-  x0 x1 = match x0, x1 with Bit1 m, Bit1 n -> Bit0 (plus_num (plus_num m n) One)
-    | Bit1 m, Bit0 n -> Bit1 (plus_num m n)
-    | Bit1 m, One -> Bit0 (plus_num m One)
-    | Bit0 m, Bit1 n -> Bit1 (plus_num m n)
-    | Bit0 m, Bit0 n -> Bit0 (plus_num m n)
-    | Bit0 m, One -> Bit1 m
-    | One, Bit1 n -> Bit0 (plus_num n One)
-    | One, Bit0 n -> Bit1 n
-    | One, One -> Bit0 One;;
-
-let rec times_num
-  m n = match m, n with
-    Bit1 m, Bit1 n -> Bit1 (plus_num (plus_num m n) (Bit0 (times_num m n)))
-    | Bit1 m, Bit0 n -> Bit0 (times_num (Bit1 m) n)
-    | Bit0 m, Bit1 n -> Bit0 (times_num m (Bit1 n))
-    | Bit0 m, Bit0 n -> Bit0 (Bit0 (times_num m n))
-    | One, n -> n
-    | m, One -> m;;
-
-let rec times_inta k l = match k, l with Nega m, Nega n -> Pos (times_num m n)
-                     | Nega m, Pos n -> Nega (times_num m n)
-                     | Pos m, Nega n -> Nega (times_num m n)
-                     | Pos m, Pos n -> Pos (times_num m n)
-                     | Zero_int, l -> Zero_int
-                     | k, Zero_int -> Zero_int;;
+let rec times_inta
+  k l = Int_of_integer (Z.mul (integer_of_int k) (integer_of_int l));;
 
 type 'a times = {times : 'a -> 'a -> 'a};;
 let times _A = _A.times;;
@@ -1519,48 +1465,24 @@ let times_int = ({times = times_inta} : int times);;
 
 let dvd_int = ({times_dvd = times_int} : int dvd);;
 
-let one_inta : int = Pos One;;
+type num = One | Bit0 of num | Bit1 of num;;
+
+let one_inta : int = Int_of_integer (Z.of_int 1);;
 
 type 'a one = {one : 'a};;
 let one _A = _A.one;;
 
 let one_int = ({one = one_inta} : int one);;
 
-let rec uminus_inta = function Nega m -> Pos m
-                      | Pos m -> Nega m
-                      | Zero_int -> Zero_int;;
+let rec uminus_inta k = Int_of_integer (Z.neg (integer_of_int k));;
 
-let rec bitM = function One -> One
-               | Bit0 n -> Bit1 (bitM n)
-               | Bit1 n -> Bit1 (Bit0 n);;
+let rec minus_inta
+  k l = Int_of_integer (Z.sub (integer_of_int k) (integer_of_int l));;
 
-let rec dup = function Nega n -> Nega (Bit0 n)
-              | Pos n -> Pos (Bit0 n)
-              | Zero_int -> Zero_int;;
+let zero_inta : int = Int_of_integer Z.zero;;
 
-let rec minus_inta k l = match k, l with Nega m, Nega n -> sub n m
-                     | Nega m, Pos n -> Nega (plus_num m n)
-                     | Pos m, Nega n -> Pos (plus_num m n)
-                     | Pos m, Pos n -> sub m n
-                     | Zero_int, l -> uminus_inta l
-                     | k, Zero_int -> k
-and sub
-  x0 x1 = match x0, x1 with
-    Bit0 m, Bit1 n -> minus_inta (dup (sub m n)) one_inta
-    | Bit1 m, Bit0 n -> plus_inta (dup (sub m n)) one_inta
-    | Bit1 m, Bit1 n -> dup (sub m n)
-    | Bit0 m, Bit0 n -> dup (sub m n)
-    | One, Bit1 n -> Nega (Bit0 n)
-    | One, Bit0 n -> Nega (bitM n)
-    | Bit1 m, One -> Pos (Bit0 m)
-    | Bit0 m, One -> Pos (bitM m)
-    | One, One -> Zero_int
-and plus_inta k l = match k, l with Nega m, Nega n -> Nega (plus_num m n)
-                | Nega m, Pos n -> sub n m
-                | Pos m, Nega n -> sub m n
-                | Pos m, Pos n -> Pos (plus_num m n)
-                | Zero_int, l -> l
-                | k, Zero_int -> k;;
+let rec plus_inta
+  k l = Int_of_integer (Z.add (integer_of_int k) (integer_of_int l));;
 
 type 'a uminus = {uminus : 'a -> 'a};;
 let uminus _A = _A.uminus;;
@@ -1646,7 +1568,7 @@ let cancel_ab_semigroup_add_int =
      minus_cancel_ab_semigroup_add = minus_int}
     : int cancel_ab_semigroup_add);;
 
-let zero_int = ({zero = Zero_int} : int zero);;
+let zero_int = ({zero = zero_inta} : int zero);;
 
 let monoid_add_int =
   ({semigroup_add_monoid_add = semigroup_add_int; zero_monoid_add = zero_int} :
@@ -1713,96 +1635,44 @@ type 'a power = {one_power : 'a one; times_power : 'a times};;
 
 let power_int = ({one_power = one_int; times_power = times_int} : int power);;
 
-let rec less_eq_num x0 n = match x0, n with Bit1 m, Bit0 n -> less_num m n
-                      | Bit1 m, Bit1 n -> less_eq_num m n
-                      | Bit0 m, Bit1 n -> less_eq_num m n
-                      | Bit0 m, Bit0 n -> less_eq_num m n
-                      | Bit1 m, One -> false
-                      | Bit0 m, One -> false
-                      | One, n -> true
-and less_num m x1 = match m, x1 with Bit1 m, Bit0 n -> less_num m n
-               | Bit1 m, Bit1 n -> less_num m n
-               | Bit0 m, Bit1 n -> less_eq_num m n
-               | Bit0 m, Bit0 n -> less_num m n
-               | One, Bit1 n -> true
-               | One, Bit0 n -> true
-               | m, One -> false;;
+let rec apsnd f (x, y) = (x, f y);;
 
-let rec less_eq_int
-  x0 x1 = match x0, x1 with Nega k, Nega l -> less_eq_num l k
-    | Nega k, Pos l -> true
-    | Nega k, Zero_int -> true
-    | Pos k, Nega l -> false
-    | Pos k, Pos l -> less_eq_num k l
-    | Pos k, Zero_int -> false
-    | Zero_int, Nega l -> false
-    | Zero_int, Pos l -> true
-    | Zero_int, Zero_int -> true;;
-
-let rec less_int x0 x1 = match x0, x1 with Nega k, Nega l -> less_num l k
-                   | Nega k, Pos l -> true
-                   | Nega k, Zero_int -> true
-                   | Pos k, Nega l -> false
-                   | Pos k, Pos l -> less_num k l
-                   | Pos k, Zero_int -> false
-                   | Zero_int, Nega l -> false
-                   | Zero_int, Pos l -> true
-                   | Zero_int, Zero_int -> false;;
-
-let rec abs_int i = (if less_int i Zero_int then uminus_inta i else i);;
-
-let rec divmod_step_int
-  l qr =
-    (let (q, r) = qr in
-      (if less_eq_int (abs_int l) (abs_int r)
-        then (plus_inta (times_inta (Pos (Bit0 One)) q) one_inta,
-               minus_inta r l)
-        else (times_inta (Pos (Bit0 One)) q, r)));;
-
-let rec divmod_int
-  m x1 = match m, x1 with
-    Bit1 m, Bit1 n ->
-      (if less_num m n then (Zero_int, Pos (Bit1 m))
-        else divmod_step_int (Pos (Bit1 n))
-               (divmod_int (Bit1 m) (Bit0 (Bit1 n))))
-    | Bit0 m, Bit1 n ->
-        (if less_eq_num m n then (Zero_int, Pos (Bit0 m))
-          else divmod_step_int (Pos (Bit1 n))
-                 (divmod_int (Bit0 m) (Bit0 (Bit1 n))))
-    | Bit1 m, Bit0 n ->
-        (let (q, r) = divmod_int m n in
-          (q, plus_inta (times_inta (Pos (Bit0 One)) r) one_inta))
-    | Bit0 m, Bit0 n ->
-        (let (q, r) = divmod_int m n in (q, times_inta (Pos (Bit0 One)) r))
-    | One, Bit1 n -> (Zero_int, Pos One)
-    | One, Bit0 n -> (Zero_int, Pos One)
-    | m, One -> (Pos m, Zero_int);;
+let rec divmod_integer
+  k l = (if Z.equal k Z.zero then (Z.zero, Z.zero)
+          else (if Z.lt Z.zero l
+                 then (if Z.lt Z.zero k
+                        then (fun k l -> if Z.equal Z.zero l then
+                               (Z.zero, l) else Z.div_rem (Z.abs k) (Z.abs l))
+                               k l
+                        else (let (r, s) =
+                                (fun k l -> if Z.equal Z.zero l then
+                                  (Z.zero, l) else Z.div_rem (Z.abs k)
+                                  (Z.abs l))
+                                  k l
+                                in
+                               (if Z.equal s Z.zero then (Z.neg r, Z.zero)
+                                 else (Z.sub (Z.neg r) (Z.of_int 1),
+Z.sub l s))))
+                 else (if Z.equal l Z.zero then (Z.zero, k)
+                        else apsnd Z.neg
+                               (if Z.lt k Z.zero
+                                 then (fun k l -> if Z.equal Z.zero l then
+(Z.zero, l) else Z.div_rem (Z.abs k) (Z.abs l))
+k l
+                                 else (let (r, s) =
+ (fun k l -> if Z.equal Z.zero l then (Z.zero, l) else Z.div_rem (Z.abs k)
+   (Z.abs l))
+   k l
+ in
+(if Z.equal s Z.zero then (Z.neg r, Z.zero)
+  else (Z.sub (Z.neg r) (Z.of_int 1), Z.sub (Z.neg l) s)))))));;
 
 let rec fst (x1, x2) = x1;;
 
-type 'a zero_neq_one =
-  {one_zero_neq_one : 'a one; zero_zero_neq_one : 'a zero};;
-
-let rec of_bool _A = function true -> one _A.one_zero_neq_one
-                     | false -> zero _A.zero_zero_neq_one;;
-
-let zero_neq_one_int =
-  ({one_zero_neq_one = one_int; zero_zero_neq_one = zero_int} :
-    int zero_neq_one);;
-
-let rec adjust_div
-  (q, r) =
-    plus_inta q (of_bool zero_neq_one_int (not (equal_inta r Zero_int)));;
+let rec divide_integer k l = fst (divmod_integer k l);;
 
 let rec divide_inta
-  k ka = match k, ka with Nega m, Nega n -> fst (divmod_int m n)
-    | Pos m, Nega n -> uminus_inta (adjust_div (divmod_int m n))
-    | Nega m, Pos n -> uminus_inta (adjust_div (divmod_int m n))
-    | Pos m, Pos n -> fst (divmod_int m n)
-    | k, Nega One -> uminus_inta k
-    | k, Pos One -> k
-    | Zero_int, k -> Zero_int
-    | k, Zero_int -> Zero_int;;
+  k l = Int_of_integer (divide_integer (integer_of_int k) (integer_of_int l));;
 
 type 'a divide = {divide : 'a -> 'a -> 'a};;
 let divide _A = _A.divide;;
@@ -1811,18 +1681,10 @@ let divide_int = ({divide = divide_inta} : int divide);;
 
 let rec snd (x1, x2) = x2;;
 
-let rec adjust_mod
-  l r = (if equal_inta r Zero_int then Zero_int else minus_inta (Pos l) r);;
+let rec modulo_integer k l = snd (divmod_integer k l);;
 
 let rec modulo_inta
-  k ka = match k, ka with Nega m, Nega n -> uminus_inta (snd (divmod_int m n))
-    | Pos m, Nega n -> uminus_inta (adjust_mod n (snd (divmod_int m n)))
-    | Nega m, Pos n -> adjust_mod n (snd (divmod_int m n))
-    | Pos m, Pos n -> snd (divmod_int m n)
-    | k, Nega One -> Zero_int
-    | k, Pos One -> Zero_int
-    | Zero_int, k -> Zero_int
-    | k, Zero_int -> k;;
+  k l = Int_of_integer (modulo_integer (integer_of_int k) (integer_of_int l));;
 
 type 'a modulo =
   {divide_modulo : 'a divide; dvd_modulo : 'a dvd; modulo : 'a -> 'a -> 'a};;
@@ -1840,6 +1702,9 @@ type 'a semiring_numeral =
   {monoid_mult_semiring_numeral : 'a monoid_mult;
     numeral_semiring_numeral : 'a numeral;
     semiring_semiring_numeral : 'a semiring};;
+
+type 'a zero_neq_one =
+  {one_zero_neq_one : 'a one; zero_zero_neq_one : 'a zero};;
 
 type 'a semiring_1 =
   {semiring_numeral_semiring_1 : 'a semiring_numeral;
@@ -1867,6 +1732,10 @@ let semiring_numeral_int =
      numeral_semiring_numeral = numeral_int;
      semiring_semiring_numeral = semiring_int}
     : int semiring_numeral);;
+
+let zero_neq_one_int =
+  ({one_zero_neq_one = one_int; zero_zero_neq_one = zero_int} :
+    int zero_neq_one);;
 
 let semiring_1_int =
   ({semiring_numeral_semiring_1 = semiring_numeral_int;
@@ -2087,6 +1956,30 @@ type nat = Nat of Z.t;;
 
 let rec integer_of_nat (Nat x) = x;;
 
+let rec bit_integer x n = Integer_Bit.test_bit x (integer_of_nat n);;
+
+let rec bit_int (Int_of_integer k) n = bit_integer k n;;
+
+type 'a semiring_bits =
+  {semiring_parity_semiring_bits : 'a semiring_parity;
+    semiring_modulo_trivial_semiring_bits : 'a semiring_modulo_trivial;
+    bit : 'a -> nat -> bool};;
+let bit _A = _A.bit;;
+
+let semiring_bits_int =
+  ({semiring_parity_semiring_bits = semiring_parity_int;
+     semiring_modulo_trivial_semiring_bits = semiring_modulo_trivial_int;
+     bit = bit_int}
+    : int semiring_bits);;
+
+let rec push_bit_integer n x = Integer_Bit.shiftl x (integer_of_nat n);;
+
+let rec unset_bit_integer
+  n k = Z.logand k (Z.lognot (push_bit_integer n (Z.of_int 1)));;
+
+let rec unset_bit_int
+  n (Int_of_integer k) = Int_of_integer (unset_bit_integer n k);;
+
 type 'a ord = {less_eq : 'a -> 'a -> bool; less : 'a -> 'a -> bool};;
 let less_eq _A = _A.less_eq;;
 let less _A = _A.less;;
@@ -2105,192 +1998,56 @@ let zero_nat : nat = Nat Z.zero;;
 
 let one_nata : nat = Nat (Z.of_int 1);;
 
-let rec inc = function One -> Bit0 One
-              | Bit0 x -> Bit1 x
-              | Bit1 x -> Bit0 (inc x);;
-
-let rec bit_int
-  x0 n = match x0, n with Nega One, n -> true
-    | Zero_int, n -> false
-    | Nega (Bit1 m), n ->
-        (if equal_nata n zero_nat then true
-          else bit_int (Nega (inc m)) (minus_nat n one_nata))
-    | Nega (Bit0 m), n ->
-        (if equal_nata n zero_nat then false
-          else bit_int (Nega m) (minus_nat n one_nata))
-    | Pos (Bit1 m), n ->
-        (if equal_nata n zero_nat then true
-          else bit_int (Pos m) (minus_nat n one_nata))
-    | Pos (Bit0 m), n ->
-        (if equal_nata n zero_nat then false
-          else bit_int (Pos m) (minus_nat n one_nata))
-    | Pos One, n -> (if equal_nata n zero_nat then true else false);;
-
-type 'a semiring_bits =
-  {semiring_parity_semiring_bits : 'a semiring_parity;
-    semiring_modulo_trivial_semiring_bits : 'a semiring_modulo_trivial;
-    bit : 'a -> nat -> bool};;
-let bit _A = _A.bit;;
-
-let semiring_bits_int =
-  ({semiring_parity_semiring_bits = semiring_parity_int;
-     semiring_modulo_trivial_semiring_bits = semiring_modulo_trivial_int;
-     bit = bit_int}
-    : int semiring_bits);;
-
-let rec push_bit_int
-  n i = (if equal_nata n zero_nat then i
-          else push_bit_int (minus_nat n one_nata) (dup i));;
-
-let rec or_num x0 x1 = match x0, x1 with One, One -> One
-                 | One, Bit0 n -> Bit1 n
-                 | One, Bit1 n -> Bit1 n
-                 | Bit0 m, One -> Bit1 m
-                 | Bit0 m, Bit0 n -> Bit0 (or_num m n)
-                 | Bit0 m, Bit1 n -> Bit1 (or_num m n)
-                 | Bit1 m, One -> Bit1 m
-                 | Bit1 m, Bit0 n -> Bit1 (or_num m n)
-                 | Bit1 m, Bit1 n -> Bit1 (or_num m n);;
-
-let rec numeral _A
-  = function
-    Bit1 n ->
-      (let m = numeral _A n in
-        plus _A.semigroup_add_numeral.plus_semigroup_add
-          (plus _A.semigroup_add_numeral.plus_semigroup_add m m)
-          (one _A.one_numeral))
-    | Bit0 n ->
-        (let m = numeral _A n in
-          plus _A.semigroup_add_numeral.plus_semigroup_add m m)
-    | One -> one _A.one_numeral;;
-
-let rec suba _A
-  k l = minus _A.group_add_neg_numeral.minus_group_add
-          (numeral _A.numeral_neg_numeral k)
-          (numeral _A.numeral_neg_numeral l);;
-
-let rec not_int = function Nega n -> suba neg_numeral_int n One
-                  | Pos n -> Nega (inc n)
-                  | Zero_int -> uminus_inta one_inta;;
-
-let rec map_option f x1 = match f, x1 with f, None -> None
-                     | f, Some x2 -> Some (f x2);;
-
-let rec and_not_num
-  x0 x1 = match x0, x1 with One, One -> None
-    | One, Bit0 n -> Some One
-    | One, Bit1 n -> None
-    | Bit0 m, One -> Some (Bit0 m)
-    | Bit0 m, Bit0 n -> map_option (fun a -> Bit0 a) (and_not_num m n)
-    | Bit0 m, Bit1 n -> map_option (fun a -> Bit0 a) (and_not_num m n)
-    | Bit1 m, One -> Some (Bit0 m)
-    | Bit1 m, Bit0 n ->
-        (match and_not_num m n with None -> Some One
-          | Some na -> Some (Bit1 na))
-    | Bit1 m, Bit1 n -> map_option (fun a -> Bit0 a) (and_not_num m n);;
-
-let rec or_not_num_neg x0 x1 = match x0, x1 with One, One -> One
-                         | One, Bit0 m -> Bit1 m
-                         | One, Bit1 m -> Bit1 m
-                         | Bit0 n, One -> Bit0 One
-                         | Bit0 n, Bit0 m -> bitM (or_not_num_neg n m)
-                         | Bit0 n, Bit1 m -> Bit0 (or_not_num_neg n m)
-                         | Bit1 n, One -> One
-                         | Bit1 n, Bit0 m -> bitM (or_not_num_neg n m)
-                         | Bit1 n, Bit1 m -> bitM (or_not_num_neg n m);;
-
-let rec and_num
-  x0 x1 = match x0, x1 with One, One -> Some One
-    | One, Bit0 n -> None
-    | One, Bit1 n -> Some One
-    | Bit0 m, One -> None
-    | Bit0 m, Bit0 n -> map_option (fun a -> Bit0 a) (and_num m n)
-    | Bit0 m, Bit1 n -> map_option (fun a -> Bit0 a) (and_num m n)
-    | Bit1 m, One -> Some One
-    | Bit1 m, Bit0 n -> map_option (fun a -> Bit0 a) (and_num m n)
-    | Bit1 m, Bit1 n ->
-        (match and_num m n with None -> Some One | Some na -> Some (Bit1 na));;
-
-let rec and_int
-  i j = match i, j with
-    Nega (Bit1 n), Pos m -> suba neg_numeral_int (or_not_num_neg (Bit0 n) m) One
-    | Nega (Bit0 n), Pos m ->
-        suba neg_numeral_int (or_not_num_neg (bitM n) m) One
-    | Nega One, Pos m -> Pos m
-    | Pos n, Nega (Bit1 m) ->
-        suba neg_numeral_int (or_not_num_neg (Bit0 m) n) One
-    | Pos n, Nega (Bit0 m) ->
-        suba neg_numeral_int (or_not_num_neg (bitM m) n) One
-    | Pos n, Nega One -> Pos n
-    | Nega n, Nega m ->
-        not_int
-          (or_int (suba neg_numeral_int n One) (suba neg_numeral_int m One))
-    | Pos n, Pos m ->
-        (match and_num n m with None -> Zero_int | Some a -> Pos a)
-    | i, Zero_int -> Zero_int
-    | Zero_int, j -> Zero_int
-and or_int
-  i j = match i, j with
-    Nega (Bit1 n), Pos m ->
-      (match and_not_num (Bit0 n) m with None -> uminus_inta one_inta
-        | Some na -> Nega (inc na))
-    | Nega (Bit0 n), Pos m ->
-        (match and_not_num (bitM n) m with None -> uminus_inta one_inta
-          | Some na -> Nega (inc na))
-    | Nega One, Pos m -> Nega One
-    | Pos n, Nega (Bit1 m) ->
-        (match and_not_num (Bit0 m) n with None -> uminus_inta one_inta
-          | Some na -> Nega (inc na))
-    | Pos n, Nega (Bit0 m) ->
-        (match and_not_num (bitM m) n with None -> uminus_inta one_inta
-          | Some na -> Nega (inc na))
-    | Pos n, Nega One -> Nega One
-    | Nega n, Nega m ->
-        not_int
-          (and_int (suba neg_numeral_int n One) (suba neg_numeral_int m One))
-    | Pos n, Pos m -> Pos (or_num n m)
-    | i, Zero_int -> i
-    | Zero_int, j -> j;;
-
-let rec unset_bit_int n k = and_int k (not_int (push_bit_int n one_inta));;
-
 let rec power _A
   a n = (if equal_nata n zero_nat then one _A.one_power
           else times _A.times_power a (power _A a (minus_nat n one_nata)));;
 
-let rec take_bit_int n k = modulo_inta k (power power_int (Pos (Bit0 One)) n);;
+let one_integera : Z.t = (Z.of_int 1);;
 
-let rec xor_num
-  x0 x1 = match x0, x1 with One, One -> None
-    | One, Bit0 n -> Some (Bit1 n)
-    | One, Bit1 n -> Some (Bit0 n)
-    | Bit0 m, One -> Some (Bit1 m)
-    | Bit0 m, Bit0 n -> map_option (fun a -> Bit0 a) (xor_num m n)
-    | Bit0 m, Bit1 n ->
-        Some (match xor_num m n with None -> One | Some a -> Bit1 a)
-    | Bit1 m, One -> Some (Bit0 m)
-    | Bit1 m, Bit0 n ->
-        Some (match xor_num m n with None -> One | Some a -> Bit1 a)
-    | Bit1 m, Bit1 n -> map_option (fun a -> Bit0 a) (xor_num m n);;
+let times_integer = ({times = Z.mul} : Z.t times);;
+
+let one_integer = ({one = one_integera} : Z.t one);;
+
+let power_integer =
+  ({one_power = one_integer; times_power = times_integer} : Z.t power);;
+
+let rec take_bit_integer
+  n k = modulo_integer k (power power_integer (Z.of_int 2) n);;
+
+let rec take_bit_int
+  n (Int_of_integer k) = Int_of_integer (take_bit_integer n k);;
+
+let rec push_bit_int
+  n (Int_of_integer k) = Int_of_integer (push_bit_integer n k);;
+
+let rec flip_bit_integer n k = Z.logxor k (push_bit_integer n (Z.of_int 1));;
+
+let rec flip_bit_int
+  n (Int_of_integer k) = Int_of_integer (flip_bit_integer n k);;
+
+let rec drop_bit_integer n x = Integer_Bit.shiftr x (integer_of_nat n);;
+
+let rec drop_bit_int
+  n (Int_of_integer k) = Int_of_integer (drop_bit_integer n k);;
+
+let rec set_bit_integer n k = Z.logor k (push_bit_integer n (Z.of_int 1));;
+
+let rec set_bit_int
+  n (Int_of_integer k) = Int_of_integer (set_bit_integer n k);;
+
+let rec mask_integer
+  n = Z.sub (power power_integer (Z.of_int 2) n) (Z.of_int 1);;
+
+let rec mask_int n = Int_of_integer (mask_integer n);;
 
 let rec xor_int
-  i j = match i, j with
-    Pos n, Nega m -> not_int (xor_int (Pos n) (suba neg_numeral_int m One))
-    | Nega n, Pos m -> not_int (xor_int (suba neg_numeral_int n One) (Pos m))
-    | Nega n, Nega m ->
-        xor_int (suba neg_numeral_int n One) (suba neg_numeral_int m One)
-    | Pos n, Pos m ->
-        (match xor_num n m with None -> Zero_int | Some a -> Pos a)
-    | i, Zero_int -> i
-    | Zero_int, j -> j;;
+  (Int_of_integer k) (Int_of_integer l) = Int_of_integer (Z.logxor k l);;
 
-let rec flip_bit_int n k = xor_int k (push_bit_int n one_inta);;
+let rec and_int
+  (Int_of_integer k) (Int_of_integer l) = Int_of_integer (Z.logand k l);;
 
-let rec drop_bit_int n k = divide_inta k (power power_int (Pos (Bit0 One)) n);;
-
-let rec set_bit_int n k = or_int k (push_bit_int n one_inta);;
-
-let rec mask_int n = minus_inta (power power_int (Pos (Bit0 One)) n) one_inta;;
+let rec or_int
+  (Int_of_integer k) (Int_of_integer l) = Int_of_integer (Z.logor k l);;
 
 type 'a semiring_bit_operations =
   {semiring_bits_semiring_bit_operations : 'a semiring_bits;
@@ -2308,6 +2065,8 @@ let flip_bit _A = _A.flip_bit;;
 let push_bit _A = _A.push_bit;;
 let drop_bit _A = _A.drop_bit;;
 let take_bit _A = _A.take_bit;;
+
+let rec not_int (Int_of_integer k) = Int_of_integer (Z.lognot k);;
 
 type 'a ring_bit_operations =
   {semiring_bit_operations_ring_bit_operations : 'a semiring_bit_operations;
@@ -2364,7 +2123,7 @@ let rec plus_worda _A
 
 let rec plus_word _A = ({plus = plus_worda _A} : 'a word plus);;
 
-let rec zero_worda _A = Word Zero_int;;
+let rec zero_worda _A = Word zero_inta;;
 
 let rec zero_word _A = ({zero = zero_worda _A} : 'a word zero);;
 
@@ -2577,8 +2336,6 @@ let rec bit_uint32
   x n = less_nat n (nat_of_integer (Z.of_int 32)) &&
           Uint32.test_bit x (integer_of_nat n);;
 
-let rec bit_integer x n = Integer_Bit.test_bit x (integer_of_nat n);;
-
 let rec uint32
   i = (let ia = Z.logand i (Z.of_string "4294967295") in
         (if bit_integer ia (nat_of_integer (Z.of_int 31))
@@ -2603,58 +2360,7 @@ let rec fold_atLeastAtMost_nat
     (if less_nat b a then acc
       else fold_atLeastAtMost_nat f (plus_nat a one_nata) b (f a acc));;
 
-let rec apsnd f (x, y) = (x, f y);;
-
-let rec divmod_integer
-  k l = (if Z.equal k Z.zero then (Z.zero, Z.zero)
-          else (if Z.lt Z.zero l
-                 then (if Z.lt Z.zero k
-                        then (fun k l -> if Z.equal Z.zero l then
-                               (Z.zero, l) else Z.div_rem (Z.abs k) (Z.abs l))
-                               k l
-                        else (let (r, s) =
-                                (fun k l -> if Z.equal Z.zero l then
-                                  (Z.zero, l) else Z.div_rem (Z.abs k)
-                                  (Z.abs l))
-                                  k l
-                                in
-                               (if Z.equal s Z.zero then (Z.neg r, Z.zero)
-                                 else (Z.sub (Z.neg r) (Z.of_int 1),
-Z.sub l s))))
-                 else (if Z.equal l Z.zero then (Z.zero, k)
-                        else apsnd Z.neg
-                               (if Z.lt k Z.zero
-                                 then (fun k l -> if Z.equal Z.zero l then
-(Z.zero, l) else Z.div_rem (Z.abs k) (Z.abs l))
-k l
-                                 else (let (r, s) =
- (fun k l -> if Z.equal Z.zero l then (Z.zero, l) else Z.div_rem (Z.abs k)
-   (Z.abs l))
-   k l
- in
-(if Z.equal s Z.zero then (Z.neg r, Z.zero)
-  else (Z.sub (Z.neg r) (Z.of_int 1), Z.sub (Z.neg l) s)))))));;
-
-let rec int_of_integer
-  k = (if Z.lt k Z.zero then uminus_inta (int_of_integer (Z.neg k))
-        else (if Z.equal k Z.zero then Zero_int
-               else (let (l, j) = divmod_integer k (Z.of_int 2) in
-                     let la = times_inta (Pos (Bit0 One)) (int_of_integer l) in
-                      (if Z.equal j Z.zero then la
-                        else plus_inta la one_inta))));;
-
-let rec int_of_nat n = int_of_integer (integer_of_nat n);;
-
-let rec integer_of_int
-  k = (if less_int k Zero_int then Z.neg (integer_of_int (uminus_inta k))
-        else (if equal_inta k Zero_int then Z.zero
-               else (let l =
-                       Z.mul (Z.of_int 2)
-                         (integer_of_int (divide_inta k (Pos (Bit0 One))))
-                       in
-                     let j = modulo_inta k (Pos (Bit0 One)) in
-                      (if equal_inta j Zero_int then l
-                        else Z.add l (Z.of_int 1)))));;
+let rec int_of_nat n = Int_of_integer (integer_of_nat n);;
 
 let rec uint32_of_int i = uint32 (integer_of_int i);;
 
@@ -2671,8 +2377,6 @@ let rec int_popcnt_i32
           zero_nat (nat_of_integer (Z.of_int 31)) zero_nat));;
 
 let rec int_of_nat_i32 n = I32_impl_abs (uint32_of_nat n);;
-
-let rec modulo_integer k l = snd (divmod_integer k l);;
 
 let rec int_shr_u_i32
   (I32_impl_abs x) (I32_impl_abs y) =
@@ -2862,9 +2566,12 @@ let rec horner_sum _B
                 a b))
       xs (zero _B.semiring_0_comm_semiring_0.mult_zero_semiring_0.zero_mult_zero);;
 
+let rec of_bool _A = function true -> one _A.one_zero_neq_one
+                     | false -> zero _A.zero_zero_neq_one;;
+
 let rec set_bits_word _A
   p = horner_sum (comm_semiring_0_word _A) (of_bool (zero_neq_one_word _A))
-        (of_int _A (Pos (Bit0 One)))
+        (of_int _A (Int_of_integer (Z.of_int 2)))
         (map p (upt zero_nat (len_of _A.len0_len Type)));;
 
 type num1 = One_num1;;
@@ -3482,6 +3189,9 @@ let rec take_tr
 
 let rec take n xs = take_tr n xs [];;
 
+let rec map_option f x1 = match f, x1 with f, None -> None
+                     | f, Some x2 -> Some (f x2);;
+
 let rec those
   = function [] -> Some []
     | x :: xs ->
@@ -3493,8 +3203,7 @@ let rec concat xss = foldr (fun a b -> a @ b) xss [];;
 let rec member _A x0 y = match x0, y with [], y -> false
                     | x :: xs, y -> eq _A x y || member _A xs y;;
 
-let int_of_integer_symbolic _ = failwith
-  "Code_Int_Integer_Conversion.int_of_integer_symbolic";;
+let rec int_of_integer_symbolic x = Int_of_integer x;;
 
 let rec uint8
   i = Abs_uint8
@@ -3679,16 +3388,16 @@ let rec dvd (_A1, _A2)
           (zero _A2.algebraic_semidom_semidom_modulo.semidom_divide_algebraic_semidom.semidom_semidom_divide.comm_semiring_1_cancel_semidom.comm_semiring_1_comm_semiring_1_cancel.semiring_1_comm_semiring_1.semiring_0_semiring_1.mult_zero_semiring_0.zero_mult_zero);;
 
 let rec bin_split
-  n w = (if equal_nata n zero_nat then (w, Zero_int)
+  n w = (if equal_nata n zero_nat then (w, zero_inta)
           else (let (w1, w2) =
                   bin_split (minus_nat n one_nata)
-                    (divide_inta w (Pos (Bit0 One)))
+                    (divide_inta w (Int_of_integer (Z.of_int 2)))
                   in
                  (w1, plus_inta
                         (of_bool zero_neq_one_int
                           (not (dvd (equal_int, semidom_modulo_int)
-                                 (Pos (Bit0 One)) w)))
-                        (times_inta (Pos (Bit0 One)) w2))));;
+                                 (Int_of_integer (Z.of_int 2)) w)))
+                        (times_inta (Int_of_integer (Z.of_int 2)) w2))));;
 
 let rec list_all p x1 = match p, x1 with p, [] -> true
                    | p, x :: xs -> p x && list_all p xs;;
@@ -4520,8 +4229,6 @@ let rec globsa
 let rec types
   (Inst_ext (types, funcs, tabs, mems, globs, elems, datas, more)) = types;;
 
-let rec divide_integer k l = fst (divmod_integer k l);;
-
 let rec divide_nat
   m n = Nat (divide_integer (integer_of_nat m) (integer_of_nat n));;
 
@@ -4936,7 +4643,8 @@ let rec app_s_f_v_s_store_maybe_packed
 let rec word_rcat_rev _A _B
   = comp (of_int _B)
       (horner_sum comm_semiring_0_int (the_int _A)
-        (power power_int (Pos (Bit0 One)) (len_of _A.len0_len Type)));;
+        (power power_int (Int_of_integer (Z.of_int 2))
+          (len_of _A.len0_len Type)));;
 
 let rec deserialise_i64
   bs = I64_impl_abs
@@ -5122,7 +4830,7 @@ let rec app_s_f_v_s_memory_init
                           else (let b = nat_of_uint8 (nth dat nsrc) in
                                  (v_sa,
                                    ([Basic (EConstNum
-     (ConstInt32 (int_of_nat_i32 (plus_nat ndest one_nata))));
+     (ConstInt32 (int_of_nat_i32 ndest)));
                                       Basic
 (EConstNum (ConstInt32 (int_of_nat_i32 b)));
                                       Basic
