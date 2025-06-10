@@ -4,6 +4,7 @@ open Types
 open Values
 
 exception PostMVP
+exception InvalidModule
 
 let convert_t_num = function
   | I32Type -> T_i32
@@ -45,11 +46,6 @@ let convert_sx = function
 	| Types.SX -> S
 	| Types.ZX -> U
 
-let conv_elem_init econst =
-  match econst.it with
-  | [{it = Ast.RefFunc v; at;}] -> var_to_nat v
-  | _ -> raise PostMVP
-
 let convert_value_num = function
 	| I32 c -> ConstInt32 (ocaml_int32_to_isabelle_int32 c)
 	| I64 c -> ConstInt64 (ocaml_int64_to_isabelle_int64 c)
@@ -59,9 +55,14 @@ let convert_value_num = function
 let convert_value_vec = function
 	| V128 c -> ConstVec128 c
 
+let convert_value_ref = function
+  | NullRef t_r -> (ConstNull (convert_t_ref t_r))
+  | _ -> raise PostMVP
+
 let convert_value = function
         | Num n -> V_num (convert_value_num n)
         | Vec v-> V_vec (convert_value_vec v)
+        | Ref r -> V_ref (convert_value_ref r)
         | _ -> raise PostMVP
 
 let convert_value_num_rev = function
@@ -407,6 +408,7 @@ let convert_dmode' dmode =
   match dmode with
   | Ast.Passive -> Dm_passive
   | Ast.Active {index; offset; } -> Dm_active (var_to_nat index, convert_instrs offset.it)
+  | Ast.Declarative -> raise InvalidModule
 (** There are no declarative data segments *)
 
 let convert_data' data =
@@ -414,10 +416,6 @@ let convert_data' data =
     Ast.dinit;
     Ast.dmode;
   } = data in Module_data_ext (List.map ocaml_char_to_isabelle_byte (LibAux.string_explode dinit), convert_dmode' dmode.it, ())
-  (* (match dmode.it with
-   | Ast.Active {index; offset; } ->
-       Module_data_ext (List.map ocaml_char_to_isabelle_byte (LibAux.string_explode dinit), convert_dmode' dmode.it, ())
-   | _ -> raise PostMVP) *)
 
 let convert_data data = convert_data' (data.it)
 

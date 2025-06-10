@@ -4892,7 +4892,8 @@ let rec app_s_f_v_s_memory_fill
                                     Basic (EConstNum (ConstInt32 vala));
                                     Basic (Store
     (T_i32, Some Tp_i8, zero_nat, zero_nat));
-                                    Basic (EConstNum (ConstInt32 dest));
+                                    Basic (EConstNum
+    (ConstInt32 (int_of_nat_i32 (plus_nat ndest one_nata))));
                                     Basic (EConstNum (ConstInt32 vala));
                                     Basic (EConstNum
     (ConstInt32 (int_of_nat_i32 (minus_nat nn one_nata))));
@@ -4951,7 +4952,8 @@ let rec app_s_f_v_s_memory_copy
    Basic (Store (T_i32, Some Tp_i8, zero_nat, zero_nat));
    Basic (EConstNum (ConstInt32 (int_of_nat_i32 (plus_nat ndest one_nata))));
    Basic (EConstNum (ConstInt32 (int_of_nat_i32 (plus_nat nsrc one_nata))));
-   Basic (EConstNum (ConstInt32 n)); Basic Memory_copy],
+   Basic (EConstNum (ConstInt32 (int_of_nat_i32 (minus_nat nn one_nata))));
+   Basic Memory_copy],
   Step_normal))
                                  else (v_sa,
 ([Basic (EConstNum
@@ -5188,7 +5190,9 @@ let rec app_s_f_v_s_table_copy
 ([Basic (EConstNum
           (ConstInt32
             (int_of_nat_i32 (plus_nat ndest (minus_nat nn one_nata)))));
-   Basic (EConstNum (ConstInt32 (int_of_nat_i32 (plus_nat nsrc nn))));
+   Basic (EConstNum
+           (ConstInt32
+             (int_of_nat_i32 (plus_nat nsrc (minus_nat nn one_nata)))));
    Basic (Table_get y); Basic (Table_set x);
    Basic (EConstNum (ConstInt32 dest)); Basic (EConstNum (ConstInt32 src));
    Basic (EConstNum (ConstInt32 (int_of_nat_i32 (minus_nat nn one_nata))));
@@ -6443,49 +6447,93 @@ let rec const_expr_p
                 | (_, Splat_vec _) -> bot_pred
                 | (_, Extract_vec (_, _, _)) -> bot_pred
                 | (_, Replace_vec (_, _)) -> bot_pred)))
-          (bind (single (xa, xb))
-            (fun a ->
-              (match a with (_, Unreachable) -> bot_pred | (_, Nop) -> bot_pred
-                | (_, Drop) -> bot_pred | (_, Select _) -> bot_pred
-                | (_, Block (_, _)) -> bot_pred | (_, Loop (_, _)) -> bot_pred
-                | (_, If (_, _, _)) -> bot_pred | (_, Br _) -> bot_pred
-                | (_, Br_if _) -> bot_pred | (_, Br_table (_, _)) -> bot_pred
-                | (_, Return) -> bot_pred | (_, Call _) -> bot_pred
-                | (_, Call_indirect (_, _)) -> bot_pred
-                | (_, Get_local _) -> bot_pred | (_, Set_local _) -> bot_pred
-                | (_, Tee_local _) -> bot_pred
-                | (c, Get_global k) ->
-                  bind (if_pred (less_nat k (size_list (global c))))
-                    (fun () ->
-                      bind (eq_i_i equal_mut (tg_mut (nth (global c) k))
-                             T_immut)
-                        (fun () -> single ()))
-                | (_, Set_global _) -> bot_pred | (_, Table_get _) -> bot_pred
-                | (_, Table_set _) -> bot_pred | (_, Table_size _) -> bot_pred
-                | (_, Table_grow _) -> bot_pred
-                | (_, Load (_, _, _, _)) -> bot_pred
-                | (_, Store (_, _, _, _)) -> bot_pred
-                | (_, Load_vec (_, _, _)) -> bot_pred
-                | (_, Load_lane_vec (_, _, _, _)) -> bot_pred
-                | (_, Store_vec (_, _, _)) -> bot_pred
-                | (_, Current_memory) -> bot_pred | (_, Grow_memory) -> bot_pred
-                | (_, Memory_init _) -> bot_pred | (_, Memory_fill) -> bot_pred
-                | (_, Memory_copy) -> bot_pred
-                | (_, Table_init (_, _)) -> bot_pred
-                | (_, Table_copy (_, _)) -> bot_pred
-                | (_, Table_fill _) -> bot_pred | (_, Elem_drop _) -> bot_pred
-                | (_, Data_drop _) -> bot_pred | (_, EConstNum _) -> bot_pred
-                | (_, EConstVec _) -> bot_pred | (_, Unop (_, _)) -> bot_pred
-                | (_, Binop (_, _)) -> bot_pred | (_, Testop (_, _)) -> bot_pred
-                | (_, Relop (_, _)) -> bot_pred
-                | (_, Cvtop (_, _, _, _)) -> bot_pred
-                | (_, Ref_null _) -> bot_pred | (_, Ref_is_null) -> bot_pred
-                | (_, Ref_func _) -> bot_pred | (_, Unop_vec _) -> bot_pred
-                | (_, Binop_vec _) -> bot_pred | (_, Ternop_vec _) -> bot_pred
-                | (_, Test_vec _) -> bot_pred | (_, Shift_vec _) -> bot_pred
-                | (_, Splat_vec _) -> bot_pred
-                | (_, Extract_vec (_, _, _)) -> bot_pred
-                | (_, Replace_vec (_, _)) -> bot_pred)))));;
+          (sup_pred
+            (bind (single (xa, xb))
+              (fun a ->
+                (match a with (_, Unreachable) -> bot_pred
+                  | (_, Nop) -> bot_pred | (_, Drop) -> bot_pred
+                  | (_, Select _) -> bot_pred | (_, Block (_, _)) -> bot_pred
+                  | (_, Loop (_, _)) -> bot_pred | (_, If (_, _, _)) -> bot_pred
+                  | (_, Br _) -> bot_pred | (_, Br_if _) -> bot_pred
+                  | (_, Br_table (_, _)) -> bot_pred | (_, Return) -> bot_pred
+                  | (_, Call _) -> bot_pred
+                  | (_, Call_indirect (_, _)) -> bot_pred
+                  | (_, Get_local _) -> bot_pred | (_, Set_local _) -> bot_pred
+                  | (_, Tee_local _) -> bot_pred | (_, Get_global _) -> bot_pred
+                  | (_, Set_global _) -> bot_pred | (_, Table_get _) -> bot_pred
+                  | (_, Table_set _) -> bot_pred | (_, Table_size _) -> bot_pred
+                  | (_, Table_grow _) -> bot_pred
+                  | (_, Load (_, _, _, _)) -> bot_pred
+                  | (_, Store (_, _, _, _)) -> bot_pred
+                  | (_, Load_vec (_, _, _)) -> bot_pred
+                  | (_, Load_lane_vec (_, _, _, _)) -> bot_pred
+                  | (_, Store_vec (_, _, _)) -> bot_pred
+                  | (_, Current_memory) -> bot_pred
+                  | (_, Grow_memory) -> bot_pred
+                  | (_, Memory_init _) -> bot_pred
+                  | (_, Memory_fill) -> bot_pred | (_, Memory_copy) -> bot_pred
+                  | (_, Table_init (_, _)) -> bot_pred
+                  | (_, Table_copy (_, _)) -> bot_pred
+                  | (_, Table_fill _) -> bot_pred | (_, Elem_drop _) -> bot_pred
+                  | (_, Data_drop _) -> bot_pred | (_, EConstNum _) -> bot_pred
+                  | (_, EConstVec _) -> bot_pred | (_, Unop (_, _)) -> bot_pred
+                  | (_, Binop (_, _)) -> bot_pred
+                  | (_, Testop (_, _)) -> bot_pred
+                  | (_, Relop (_, _)) -> bot_pred
+                  | (_, Cvtop (_, _, _, _)) -> bot_pred
+                  | (_, Ref_null _) -> single () | (_, Ref_is_null) -> bot_pred
+                  | (_, Ref_func _) -> bot_pred | (_, Unop_vec _) -> bot_pred
+                  | (_, Binop_vec _) -> bot_pred | (_, Ternop_vec _) -> bot_pred
+                  | (_, Test_vec _) -> bot_pred | (_, Shift_vec _) -> bot_pred
+                  | (_, Splat_vec _) -> bot_pred
+                  | (_, Extract_vec (_, _, _)) -> bot_pred
+                  | (_, Replace_vec (_, _)) -> bot_pred)))
+            (bind (single (xa, xb))
+              (fun a ->
+                (match a with (_, Unreachable) -> bot_pred
+                  | (_, Nop) -> bot_pred | (_, Drop) -> bot_pred
+                  | (_, Select _) -> bot_pred | (_, Block (_, _)) -> bot_pred
+                  | (_, Loop (_, _)) -> bot_pred | (_, If (_, _, _)) -> bot_pred
+                  | (_, Br _) -> bot_pred | (_, Br_if _) -> bot_pred
+                  | (_, Br_table (_, _)) -> bot_pred | (_, Return) -> bot_pred
+                  | (_, Call _) -> bot_pred
+                  | (_, Call_indirect (_, _)) -> bot_pred
+                  | (_, Get_local _) -> bot_pred | (_, Set_local _) -> bot_pred
+                  | (_, Tee_local _) -> bot_pred
+                  | (c, Get_global k) ->
+                    bind (if_pred (less_nat k (size_list (global c))))
+                      (fun () ->
+                        bind (eq_i_i equal_mut (tg_mut (nth (global c) k))
+                               T_immut)
+                          (fun () -> single ()))
+                  | (_, Set_global _) -> bot_pred | (_, Table_get _) -> bot_pred
+                  | (_, Table_set _) -> bot_pred | (_, Table_size _) -> bot_pred
+                  | (_, Table_grow _) -> bot_pred
+                  | (_, Load (_, _, _, _)) -> bot_pred
+                  | (_, Store (_, _, _, _)) -> bot_pred
+                  | (_, Load_vec (_, _, _)) -> bot_pred
+                  | (_, Load_lane_vec (_, _, _, _)) -> bot_pred
+                  | (_, Store_vec (_, _, _)) -> bot_pred
+                  | (_, Current_memory) -> bot_pred
+                  | (_, Grow_memory) -> bot_pred
+                  | (_, Memory_init _) -> bot_pred
+                  | (_, Memory_fill) -> bot_pred | (_, Memory_copy) -> bot_pred
+                  | (_, Table_init (_, _)) -> bot_pred
+                  | (_, Table_copy (_, _)) -> bot_pred
+                  | (_, Table_fill _) -> bot_pred | (_, Elem_drop _) -> bot_pred
+                  | (_, Data_drop _) -> bot_pred | (_, EConstNum _) -> bot_pred
+                  | (_, EConstVec _) -> bot_pred | (_, Unop (_, _)) -> bot_pred
+                  | (_, Binop (_, _)) -> bot_pred
+                  | (_, Testop (_, _)) -> bot_pred
+                  | (_, Relop (_, _)) -> bot_pred
+                  | (_, Cvtop (_, _, _, _)) -> bot_pred
+                  | (_, Ref_null _) -> bot_pred | (_, Ref_is_null) -> bot_pred
+                  | (_, Ref_func _) -> bot_pred | (_, Unop_vec _) -> bot_pred
+                  | (_, Binop_vec _) -> bot_pred | (_, Ternop_vec _) -> bot_pred
+                  | (_, Test_vec _) -> bot_pred | (_, Shift_vec _) -> bot_pred
+                  | (_, Splat_vec _) -> bot_pred
+                  | (_, Extract_vec (_, _, _)) -> bot_pred
+                  | (_, Replace_vec (_, _)) -> bot_pred))))));;
 
 let rec const_expr x1 x2 = holds (const_expr_p x1 x2);;
 

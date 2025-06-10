@@ -629,16 +629,16 @@ let rec run_command cmd =
             Valid.check_module_isa m_isa;
             if !Flags.print_sig then failwith "NYI"
           end;
-         let imports_isa = List.map match_import_isa (WasmRef_Isa.m_imports m_isa) in
-         (match WasmRef_Isa.interp_instantiate_init !store_isa m_isa imports_isa with
-          | (s', WasmRef_Isa.RI_res(inst, exps, _)) ->
-              store_isa := s';
-              if not !Flags.dry then begin
-                trace "Initializing...";
-                bind_isa exports_isa x_opt (List.map (fun x -> WasmRef_Isa.(e_name x, e_desc x)) exps)
-              end
-          | (s',_) -> store_isa := s'; failwith "(Isabelle) instantiation failure"
-         ))
+          if not !Flags.dry then begin
+            let imports_isa = List.map match_import_isa (WasmRef_Isa.m_imports m_isa) in
+            (match WasmRef_Isa.interp_instantiate_init !store_isa m_isa imports_isa with
+              | (s', WasmRef_Isa.RI_res(inst, exps, _)) ->
+                  store_isa := s';
+                  trace "Initializing...";
+                  bind_isa exports_isa x_opt (List.map (fun x -> WasmRef_Isa.(e_name x, e_desc x)) exps)
+              | (s',_) -> store_isa := s'; failwith "(Isabelle) instantiation failure"
+            )
+          end)
        with
        | e -> trace ("(Isabelle) module processing error at " ^ (string_of_region cmd.at)); raise e
     else
