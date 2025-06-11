@@ -994,9 +994,11 @@ module WasmRef_Isa : sig
   val vec_num : shape_vec -> nat
   val tb_tf_t : unit t_context_ext -> tb -> tf option
   val tab_t_reftype : tab_t -> t_ref
-  val same_lab_h : nat list -> (t list) list -> t list -> (t list) option
-  val same_lab : nat list -> (t list) list -> (t list) option
   val is_mut : unit tg_ext -> bool
+  val min_t : t -> t -> t
+  val min_ts : t list -> t list -> (t list) option
+  val min_lab_h : nat list -> (t list) list -> t list -> (t list) option
+  val min_lab : nat list -> (t list) list -> (t list) option
   val check :
     unit t_context_ext -> b_e list -> t list * reach -> (t list * reach) option
   val b_e_type_checker : unit t_context_ext -> b_e list -> tf -> bool
@@ -1406,6 +1408,9 @@ module WasmRef_Isa : sig
   val e_name : 'a module_export_ext -> string
   val i_desc : 'a module_import_ext -> imp_desc
   val interp_get_v_ref : unit s_ext -> unit inst_ext -> b_e list -> v_ref
+  val collect_funcidxs_module_import : unit module_import_ext -> nat list
+  val collect_funcidxs_module_export : unit module_export_ext -> nat list
+  val collect_funcidxs_module_glob : unit module_glob_ext -> nat list
   val collect_funcidxs_module_func : nat * (t list * b_e list) -> nat list
   val collect_funcidxs_b_e_list : b_e list -> nat list
   val collect_funcidxs_elem_mode : elem_mode -> nat list
@@ -3972,20 +3977,27 @@ let rec tb_tf_t
 
 let rec tab_t_reftype tt = (let T_tab (_, t) = tt in t);;
 
-let rec same_lab_h
+let rec is_mut tg = equal_muta (tg_mut tg) T_mut;;
+
+let rec min_t t1 t2 = (if equal_ta t1 t2 then t1 else T_bot);;
+
+let rec min_ts
+  ts1 ts2 =
+    (if equal_nata (size_list ts1) (size_list ts2)
+      then Some (map (fun (a, b) -> min_t a b) (zip ts1 ts2)) else None);;
+
+let rec min_lab_h
   x0 uu ts = match x0, uu, ts with [], uu, ts -> Some ts
     | i :: is, lab_c, ts ->
         (if less_eq_nat (size_list lab_c) i then None
-          else (if equal_list equal_t (nth lab_c i) ts
-                 then same_lab_h is lab_c (nth lab_c i) else None));;
+          else (match min_ts (nth lab_c i) ts with None -> None
+                 | Some a -> min_lab_h is lab_c a));;
 
-let rec same_lab
+let rec min_lab
   x0 lab_c = match x0, lab_c with [], lab_c -> None
     | i :: is, lab_c ->
         (if less_eq_nat (size_list lab_c) i then None
-          else same_lab_h is lab_c (nth lab_c i));;
-
-let rec is_mut tg = equal_muta (tg_mut tg) T_mut;;
+          else min_lab_h is lab_c (nth lab_c i));;
 
 let rec check
   c es ct =
@@ -4080,7 +4092,7 @@ and check_single
                  (nth (label c) i)
           else None)
     | c, Br_table (is, i), ts ->
-        (match same_lab (is @ [i]) (label c) with None -> None
+        (match min_lab (is @ [i]) (label c) with None -> None
           | Some tls ->
             (if not (is_none (consume ts (tls @ [T_num T_i32])))
               then Some ([], Unreach) else None))
@@ -6917,6 +6929,17 @@ let rec i_desc (Module_import_ext (i_module, i_name, i_desc, more)) = i_desc;;
 let rec interp_get_v_ref
   s inst b_es = (let V_ref v = interp_get_v s inst b_es in v);;
 
+let rec collect_funcidxs_module_import
+  me = (match i_desc me with Imp_func i -> [i] | Imp_tab _ -> []
+         | Imp_mem _ -> [] | Imp_glob _ -> []);;
+
+let rec collect_funcidxs_module_export
+  me = (match e_desc me with Ext_func i -> [i] | Ext_tab _ -> []
+         | Ext_mem _ -> [] | Ext_glob _ -> []);;
+
+let rec collect_funcidxs_module_glob
+  glob = map_filter extract_funcidx_b_e (g_init glob);;
+
 let rec collect_funcidxs_module_func
   (uu, (uv, es)) = map_filter extract_funcidx_b_e es;;
 
@@ -6940,11 +6963,18 @@ let rec collect_funcidxs_module_data
 let rec collect_funcidxs_module
   modulea =
     (let from_funcs = maps collect_funcidxs_module_func (m_funcs modulea) in
+     let from_globs = maps collect_funcidxs_module_glob (m_globs modulea) in
      let from_start = (match m_start modulea with None -> [] | Some x -> [x]) in
      let from_elems = maps collect_funcidxs_module_elem (m_elems modulea) in
      let from_datas = maps collect_funcidxs_module_data (m_datas modulea) in
+     let from_imports = maps collect_funcidxs_module_import (m_imports modulea)
+       in
+     let from_exports = maps collect_funcidxs_module_export (m_exports modulea)
+       in
       remdups equal_nat
-        (concat [from_funcs; from_start; from_elems; from_datas]));;
+        (concat
+          [from_funcs; from_globs; from_start; from_elems; from_datas;
+            from_imports; from_exports]));;
 
 let rec gather_m_f_type
   tfs m_f =
