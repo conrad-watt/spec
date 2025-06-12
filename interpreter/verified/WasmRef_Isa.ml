@@ -745,7 +745,9 @@ module WasmRef_Isa : sig
       cl list * (tab_t * v_ref list) list * (unit limit_t_ext * mem_rep) list *
         unit global_ext list * (t_ref * v_ref list) list * (uint8 list) list *
         'a
-  and host = Abs_host of (unit s_ext * v list -> (unit s_ext * v list) option)
+  and host_func =
+    Abs_host_func of (unit s_ext * v list -> (unit s_ext * v list) option)
+  and host = Host_func of host_func | Host_ref of int32
   and cl = Func_native of unit inst_ext * tf * t list * b_e list |
     Func_host of tf * host
   and v_ref = ConstNull of t_ref | ConstRefFunc of nat | ConstRefExtern of host
@@ -1338,10 +1340,11 @@ module WasmRef_Isa : sig
   val datas_update :
     ((uint8 list) list -> (uint8 list) list) -> 'a s_ext -> 'a s_ext
   val run_step_b_e : b_e -> config -> config * res_step
+  val rep_host_func :
+    host_func -> unit s_ext * v list -> (unit s_ext * v list) option
+  val host_func_apply_impl :
+    unit s_ext -> tf -> host_func -> v list -> (unit s_ext * v list) option
   val crash_exhaustion : res_step
-  val rep_host : host -> unit s_ext * v list -> (unit s_ext * v list) option
-  val host_apply_impl :
-    unit s_ext -> tf -> host -> v list -> (unit s_ext * v list) option
   val run_step_e : e -> config -> config * res_step
   val run_iter : nat -> config -> config * res
   val run_v :
@@ -3087,7 +3090,9 @@ and 'a s_ext =
   S_ext of
     cl list * (tab_t * v_ref list) list * (unit limit_t_ext * mem_rep) list *
       unit global_ext list * (t_ref * v_ref list) list * (uint8 list) list * 'a
-and host = Abs_host of (unit s_ext * v list -> (unit s_ext * v list) option)
+and host_func =
+  Abs_host_func of (unit s_ext * v list -> (unit s_ext * v list) option)
+and host = Host_func of host_func | Host_ref of int32
 and cl = Func_native of unit inst_ext * tf * t list * b_e list |
   Func_host of tf * host
 and v_ref = ConstNull of t_ref | ConstRefFunc of nat | ConstRefExtern of host;;
@@ -6205,12 +6210,12 @@ let rec run_step_b_e
           (let (v_sa, a) = app_v_s_replace_vec sv i v_s in
             (Config (d, s, update_fc_step fc v_sa [], fcs), a))));;
 
+let rec rep_host_func (Abs_host_func x) = x;;
+
+let rec host_func_apply_impl s tf h vs = rep_host_func h (s, vs);;
+
 let crash_exhaustion : res_step
   = Res_crash (Error_exhaustion "call stack exhausted");;
-
-let rec rep_host (Abs_host x) = x;;
-
-let rec host_apply_impl s tf h vs = rep_host h (s, vs);;
 
 let rec run_step_e
   e (Config (d, s, fc, fcs)) =
@@ -6244,12 +6249,13 @@ let rec run_step_e
  fca :: fcs),
                                       Step_normal))
                              else (Config (d, s, fc, fcs), crash_invalid)))))
-            | Func_host (Tf (t1s, t2s), h) ->
+            | Func_host (Tf (t1s, t2s), Host_func hf) ->
               (let n = size_list t1s in
                let _ = size_list t2s in
                 (if less_eq_nat n (size_list v_s)
                   then (let (v_fs, v_sa) = split_n v_s n in
-                         (match host_apply_impl s (Tf (t1s, t2s)) h (rev v_fs)
+                         (match
+                           host_func_apply_impl s (Tf (t1s, t2s)) hf (rev v_fs)
                            with None ->
                              (Config
                                 (d, s,
@@ -6266,7 +6272,9 @@ let rec run_step_e
                                        in
                                       (Config (d, sa, fca, fcs), Step_normal))
                                else (Config (d, sa, fc, fcs), crash_invalid))))
-                  else (Config (d, s, fc, fcs), crash_invalid))))
+                  else (Config (d, s, fc, fcs), crash_invalid)))
+            | Func_host (Tf (_, _), Host_ref _) ->
+              (Config (d, s, fc, fcs), crash_invariant))
         | Label (_, _, _) -> (Config (d, s, fc, fcs), crash_invariant)
         | Frame (_, _, _) -> (Config (d, s, fc, fcs), crash_invariant)
         | Ref _ -> (Config (d, s, fc, fcs), crash_invariant)));;

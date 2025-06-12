@@ -17,7 +17,7 @@ let print_value (v : v) =
 (* let print' : host =
   Abs_host_m (fun (s, vs) -> fun () -> List.iter print_value vs; flush_all (); Some (s, [])) *)
   let print' : host =
-    Abs_host (fun (s, vs) -> List.iter print_value vs; flush_all (); Some (s, []))
+    Host_func (Abs_host_func (fun (s, vs) -> List.iter print_value vs; flush_all (); Some (s, [])))
 
 let spectest_func_imports =
  [("print", Func_host (Tf ([],[]), print'));

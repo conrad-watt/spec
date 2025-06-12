@@ -2,6 +2,7 @@ open WasmRef_Isa.WasmRef_Isa
 open Source
 open Types
 open Values
+open Script
 
 exception PostMVP
 exception InvalidModule
@@ -57,6 +58,8 @@ let convert_value_vec = function
 
 let convert_value_ref = function
   | NullRef t_r -> (ConstNull (convert_t_ref t_r))
+  | ExternRef x -> (ConstRefExtern (Host_ref  x))
+  (* | ConstRefFunc i -> () *)
   | _ -> raise PostMVP
 
 let convert_value = function
@@ -74,9 +77,19 @@ let convert_value_num_rev = function
 let convert_value_vec_rev = function
 	| ConstVec128 c -> V128 c
 
+let convert_t_ref_rev = function
+  | T_func_ref -> FuncRefType
+  | T_ext_ref -> ExternRefType
+
+  let convert_value_ref_rev = function
+	| (ConstRefExtern (Host_ref  x)) -> ExternRef x
+  | (ConstNull t_r) -> NullRef (convert_t_ref_rev t_r)
+  | _ -> raise PostMVP
+
 let convert_value_rev = function
         | V_num v -> Num (convert_value_num_rev v)
         | V_vec v -> Vec (convert_value_vec_rev v)
+        | V_ref v -> (Ref (convert_value_ref_rev v))
         | _ -> raise PostMVP
 
 let convert_int_testop = function
@@ -282,7 +295,8 @@ let rec convert_instr instr =
 	| Ast.CallIndirect(n, y) -> Call_indirect (var_to_nat n, var_to_nat y)
 	| Ast.Drop -> Drop
 	| Ast.Select None -> Select None
-  | Ast.Select (Some [t]) -> Select (Some (convert_t t))
+  | Ast.Select (Some []) -> Select None
+  | Ast.Select (Some (t::_)) -> Select (Some (convert_t t))
 	| Ast.LocalGet n -> Get_local (var_to_nat n)
 	| Ast.LocalSet n -> Set_local (var_to_nat n)
 	| Ast.LocalTee n -> Tee_local (var_to_nat n)
