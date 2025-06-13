@@ -450,7 +450,7 @@ let convert_export exp =
     Ast.name;
     Ast.edesc;
   } = exp.it in
-  Module_export_ext ((unescaped_string_of_name name), (convert_export_desc edesc), ())
+  Module_export_ext ((Ast.string_of_name name), (convert_export_desc edesc), ())
 
 let convert_import_desc idesc =
   match idesc.it with
