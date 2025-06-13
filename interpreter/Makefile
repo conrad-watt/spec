@@ -17,7 +17,7 @@ ZIP =		$(NAME).zip
 JSLIB =		wast.js
 WINMAKE =	winmake.bat
 
-DIRS =		util syntax binary text valid runtime exec script host main tests verified verified_wrapper
+DIRS =		util syntax binary text valid runtime exec script host main tests verified verified_wrapper parray
 LIBS =		bigarray
 PKGS =		zarith
 FLAGS = 	-use-ocamlfind -lexflags -ml -cflags '-w +a-3-4-8-11-20-26-27-32-39-42-44-45-70 -warn-error -unboxed-types'
