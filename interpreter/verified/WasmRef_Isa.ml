@@ -822,6 +822,7 @@ module WasmRef_Isa : sig
   val membera : 'a equal -> 'a seq -> 'a -> bool
   val holds : unit pred -> bool
   val l_min : 'a limit_t_ext -> nat
+  val nat_to_ocaml_int : nat -> Int.t
   val zero_uint8 : uint8
   val zero_byte : uint8
   val mem_rep_mk : nat -> uint8 Parray.t
@@ -1017,6 +1018,7 @@ module WasmRef_Isa : sig
   val mem_append :
     unit limit_t_ext * uint8 Parray.t ->
       nat -> uint8 -> unit limit_t_ext * uint8 Parray.t
+  val ocaml_int_to_nat : Int.t -> nat
   val mem_rep_length : uint8 Parray.t -> nat
   val mem_length : unit limit_t_ext * uint8 Parray.t -> nat
   val mem_rep_read_bytes : uint8 Parray.t -> nat -> nat -> uint8 list
@@ -3268,15 +3270,16 @@ let rec holds p = eval equal_unit p ();;
 
 let rec l_min (Limit_t_ext (l_min, l_max, more)) = l_min;;
 
+let rec nat_to_ocaml_int
+  x = Int32.to_int (LibAux.uint32_of_z (integer_of_nat x));;
+
 let zero_uint8 : uint8
   = Abs_uint8 (zero_worda (len_bit0 (len_bit0 (len_bit0 len_num1))));;
 
 let zero_byte : uint8 = zero_uint8;;
 
 let rec mem_rep_mk
-  x = Parray.make
-        (Int32.to_int (LibAux.uint32_of_z (integer_of_nat (times_nata x ki64))))
-        zero_byte;;
+  x = Parray.make (nat_to_ocaml_int (times_nata x ki64)) zero_byte;;
 
 let rec mem_mk lim = (lim, mem_rep_mk (l_min lim));;
 
@@ -4262,9 +4265,7 @@ let rec l_min_update
     Limit_t_ext (l_mina l_min, l_max, more);;
 
 let rec mem_rep_append
-  m x b =
-    MemRepWrapper.memRepAppend m
-      (Int32.to_int (LibAux.uint32_of_z (integer_of_nat x))) b;;
+  m x b = MemRepWrapper.memRepAppend m (nat_to_ocaml_int x) b;;
 
 let rec mem_append
   m n b =
@@ -4272,17 +4273,16 @@ let rec mem_append
        (fst m),
       mem_rep_append (snd m) n b);;
 
-let rec mem_rep_length
-  x = comp (comp (comp nat_of_integer LibAux.z_of_uint32) Int32.of_int)
-        Parray.length x;;
+let rec ocaml_int_to_nat
+  x = nat_of_integer (LibAux.z_of_uint32 (Int32.of_int x));;
+
+let rec mem_rep_length m = ocaml_int_to_nat (Parray.length m);;
 
 let rec mem_length m = mem_rep_length (snd m);;
 
 let rec mem_rep_read_bytes
   m x y =
-    MemRepWrapper.memRepReadBytes m
-      (Int32.to_int (LibAux.uint32_of_z (integer_of_nat x)))
-      (Int32.to_int (LibAux.uint32_of_z (integer_of_nat y)));;
+    MemRepWrapper.memRepReadBytes m (nat_to_ocaml_int x) (nat_to_ocaml_int y);;
 
 let rec read_bytes m n l = mem_rep_read_bytes (snd m) n l;;
 
@@ -4307,9 +4307,7 @@ let one_uint8 : uint8
 let negone_byte : uint8 = uminus_uint8 one_uint8;;
 
 let rec mem_rep_write_bytes
-  m x bs =
-    MemRepWrapper.memRepWriteBytes m
-      (Int32.to_int (LibAux.uint32_of_z (integer_of_nat x))) bs;;
+  m x bs = MemRepWrapper.memRepWriteBytes m (nat_to_ocaml_int x) bs;;
 
 let rec write_bytes m n bs = (fst m, mem_rep_write_bytes (snd m) n bs);;
 
