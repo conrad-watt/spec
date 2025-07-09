@@ -3270,8 +3270,7 @@ let rec holds p = eval equal_unit p ();;
 
 let rec l_min (Limit_t_ext (l_min, l_max, more)) = l_min;;
 
-let rec nat_to_ocaml_int
-  x = Int32.to_int (LibAux.uint32_of_z (integer_of_nat x));;
+let rec nat_to_ocaml_int x = Z.to_int (integer_of_nat x);;
 
 let zero_uint8 : uint8
   = Abs_uint8 (zero_worda (len_bit0 (len_bit0 (len_bit0 len_num1))));;
@@ -4273,8 +4272,7 @@ let rec mem_append
        (fst m),
       mem_rep_append (snd m) n b);;
 
-let rec ocaml_int_to_nat
-  x = nat_of_integer (LibAux.z_of_uint32 (Int32.of_int x));;
+let rec ocaml_int_to_nat x = nat_of_integer (Z.of_int x);;
 
 let rec mem_rep_length m = ocaml_int_to_nat (Parray.length m);;
 
