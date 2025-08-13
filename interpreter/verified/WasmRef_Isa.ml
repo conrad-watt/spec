@@ -717,14 +717,14 @@ module WasmRef_Isa : sig
     Block of tb * b_e list | Loop of tb * b_e list |
     If of tb * b_e list * b_e list | Br of nat | Br_if of nat |
     Br_table of nat list * nat | Return | Call of nat |
-    Call_indirect of nat * nat | Get_local of nat | Set_local of nat |
-    Tee_local of nat | Get_global of nat | Set_global of nat | Table_get of nat
+    Call_indirect of nat * nat | Local_get of nat | Local_set of nat |
+    Local_tee of nat | Global_get of nat | Global_set of nat | Table_get of nat
     | Table_set of nat | Table_size of nat | Table_grow of nat |
     Load of t_num * (tp_num * sx) option * nat * nat |
     Store of t_num * tp_num option * nat * nat |
     Load_vec of loadop_vec * nat * nat |
     Load_lane_vec of shape_vec_i * nat * nat * nat |
-    Store_vec of storeop_vec * nat * nat | Current_memory | Grow_memory |
+    Store_vec of storeop_vec * nat * nat | Memory_size | Memory_grow |
     Memory_init of nat | Memory_fill | Memory_copy | Table_init of nat * nat |
     Table_copy of nat * nat | Table_fill of nat | Elem_drop of nat |
     Data_drop of nat | EConstNum of v_num | EConstVec of v_vec |
@@ -1206,11 +1206,11 @@ module WasmRef_Isa : sig
   val sglob_ind : unit inst_ext -> nat -> nat
   val update_glob :
     unit global_ext list -> unit inst_ext -> nat -> v -> unit global_ext list
-  val app_s_f_v_s_set_global :
+  val app_s_f_v_s_global_set :
     nat ->
       unit global_ext list ->
         unit f_ext -> v list -> unit global_ext list * (v list * res_step)
-  val app_s_f_v_s_get_global :
+  val app_s_f_v_s_global_get :
     nat -> unit global_ext list -> unit f_ext -> v list -> v list * res_step
   val store_tab1 :
     tab_t * v_ref list -> nat -> v_ref -> (tab_t * v_ref list) option
@@ -1267,9 +1267,9 @@ module WasmRef_Isa : sig
   val app_extract_vec : shape_vec -> sx -> nat -> v_vec -> v_num
   val app_v_s_extract_vec :
     shape_vec -> sx -> nat -> v list -> v list * res_step
-  val app_f_v_s_set_local :
+  val app_f_v_s_local_set :
     nat -> unit f_ext -> v list -> unit f_ext * (v list * res_step)
-  val app_f_v_s_get_local : nat -> unit f_ext -> v list -> v list * res_step
+  val app_f_v_s_local_get : nat -> unit f_ext -> v list -> v list * res_step
   val app_ternop_vec_v :
     V128Wrapper.ternop_vec_t ->
       V128Wrapper.t -> V128Wrapper.t -> V128Wrapper.t -> V128Wrapper.t
@@ -1278,7 +1278,6 @@ module WasmRef_Isa : sig
   val app_v_s_ternop_vec :
     V128Wrapper.ternop_vec_t -> v list -> v list * res_step
   val app_f_v_s_ref_func : nat -> unit f_ext -> v list -> v list * res_step
-  val app_v_s_tee_local : nat -> v list -> v list * (e list * res_step)
   val app_splat_vec : shape_vec -> v_num -> v_vec
   val app_v_s_splat_vec : shape_vec -> v list -> v list * res_step
   val app_shift_vec_v :
@@ -1286,6 +1285,7 @@ module WasmRef_Isa : sig
   val app_shift_vec : V128Wrapper.shiftop_vec_t -> v_vec -> i32 -> v_vec
   val app_v_s_shift_vec :
     V128Wrapper.shiftop_vec_t -> v list -> v list * res_step
+  val app_v_s_local_tee : nat -> v list -> v list * (e list * res_step)
   val app_binop_vec_v :
     V128Wrapper.binop_vec_t ->
       V128Wrapper.t -> V128Wrapper.t -> V128Wrapper.t option
@@ -3073,13 +3073,13 @@ type b_e = Unreachable | Nop | Drop | Select of t option |
   Block of tb * b_e list | Loop of tb * b_e list |
   If of tb * b_e list * b_e list | Br of nat | Br_if of nat |
   Br_table of nat list * nat | Return | Call of nat | Call_indirect of nat * nat
-  | Get_local of nat | Set_local of nat | Tee_local of nat | Get_global of nat |
-  Set_global of nat | Table_get of nat | Table_set of nat | Table_size of nat |
+  | Local_get of nat | Local_set of nat | Local_tee of nat | Global_get of nat |
+  Global_set of nat | Table_get of nat | Table_set of nat | Table_size of nat |
   Table_grow of nat | Load of t_num * (tp_num * sx) option * nat * nat |
   Store of t_num * tp_num option * nat * nat |
   Load_vec of loadop_vec * nat * nat |
   Load_lane_vec of shape_vec_i * nat * nat * nat |
-  Store_vec of storeop_vec * nat * nat | Current_memory | Grow_memory |
+  Store_vec of storeop_vec * nat * nat | Memory_size | Memory_grow |
   Memory_init of nat | Memory_fill | Memory_copy | Table_init of nat * nat |
   Table_copy of nat * nat | Table_fill of nat | Elem_drop of nat |
   Data_drop of nat | EConstNum of v_num | EConstVec of v_vec |
@@ -4128,19 +4128,19 @@ and check_single
                    type_update ts (tn @ [T_num T_i32]) tm
                  | (Tf (_, _), T_tab (_, T_ext_ref)) -> None)
           else None)
-    | c, Get_local i, ts ->
+    | c, Local_get i, ts ->
         (if less_nat i (size_list (local c))
           then type_update ts [] [nth (local c) i] else None)
-    | c, Set_local i, ts ->
+    | c, Local_set i, ts ->
         (if less_nat i (size_list (local c))
           then type_update ts [nth (local c) i] [] else None)
-    | c, Tee_local i, ts ->
+    | c, Local_tee i, ts ->
         (if less_nat i (size_list (local c))
           then type_update ts [nth (local c) i] [nth (local c) i] else None)
-    | c, Get_global i, ts ->
+    | c, Global_get i, ts ->
         (if less_nat i (size_list (global c))
           then type_update ts [] [tg_t (nth (global c) i)] else None)
-    | c, Set_global i, ts ->
+    | c, Global_set i, ts ->
         (if less_nat i (size_list (global c)) && is_mut (nth (global c) i)
           then type_update ts [tg_t (nth (global c) i)] [] else None)
     | c, Load (t, tp_sx, a, off), ts ->
@@ -4166,10 +4166,10 @@ and check_single
         (if less_eq_nat one_nata (size_list (memory c)) &&
               store_vec_t_bounds sv a
           then type_update ts [T_num T_i32; T_vec T_v128] [] else None)
-    | c, Current_memory, ts ->
+    | c, Memory_size, ts ->
         (if less_eq_nat one_nata (size_list (memory c))
           then type_update ts [] [T_num T_i32] else None)
-    | c, Grow_memory, ts ->
+    | c, Memory_grow, ts ->
         (if less_eq_nat one_nata (size_list (memory c))
           then type_update ts [T_num T_i32] [T_num T_i32] else None)
     | c, Memory_init i, ts ->
@@ -4443,11 +4443,11 @@ let rec split_v_s_b_s_aux
     | v_s, Return :: va -> (v_s, Return :: va)
     | v_s, Call vb :: va -> (v_s, Call vb :: va)
     | v_s, Call_indirect (vb, vc) :: va -> (v_s, Call_indirect (vb, vc) :: va)
-    | v_s, Get_local vb :: va -> (v_s, Get_local vb :: va)
-    | v_s, Set_local vb :: va -> (v_s, Set_local vb :: va)
-    | v_s, Tee_local vb :: va -> (v_s, Tee_local vb :: va)
-    | v_s, Get_global vb :: va -> (v_s, Get_global vb :: va)
-    | v_s, Set_global vb :: va -> (v_s, Set_global vb :: va)
+    | v_s, Local_get vb :: va -> (v_s, Local_get vb :: va)
+    | v_s, Local_set vb :: va -> (v_s, Local_set vb :: va)
+    | v_s, Local_tee vb :: va -> (v_s, Local_tee vb :: va)
+    | v_s, Global_get vb :: va -> (v_s, Global_get vb :: va)
+    | v_s, Global_set vb :: va -> (v_s, Global_set vb :: va)
     | v_s, Table_get vb :: va -> (v_s, Table_get vb :: va)
     | v_s, Table_set vb :: va -> (v_s, Table_set vb :: va)
     | v_s, Table_size vb :: va -> (v_s, Table_size vb :: va)
@@ -4458,8 +4458,8 @@ let rec split_v_s_b_s_aux
     | v_s, Load_lane_vec (vb, vc, vd, ve) :: va ->
         (v_s, Load_lane_vec (vb, vc, vd, ve) :: va)
     | v_s, Store_vec (vb, vc, vd) :: va -> (v_s, Store_vec (vb, vc, vd) :: va)
-    | v_s, Current_memory :: va -> (v_s, Current_memory :: va)
-    | v_s, Grow_memory :: va -> (v_s, Grow_memory :: va)
+    | v_s, Memory_size :: va -> (v_s, Memory_size :: va)
+    | v_s, Memory_grow :: va -> (v_s, Memory_grow :: va)
     | v_s, Memory_init vb :: va -> (v_s, Memory_init vb :: va)
     | v_s, Memory_fill :: va -> (v_s, Memory_fill :: va)
     | v_s, Memory_copy :: va -> (v_s, Memory_copy :: va)
@@ -4509,11 +4509,11 @@ let rec split_v_s_es_aux
     | v_s, Basic (Call vc) :: va -> (v_s, Basic (Call vc) :: va)
     | v_s, Basic (Call_indirect (vc, vd)) :: va ->
         (v_s, Basic (Call_indirect (vc, vd)) :: va)
-    | v_s, Basic (Get_local vc) :: va -> (v_s, Basic (Get_local vc) :: va)
-    | v_s, Basic (Set_local vc) :: va -> (v_s, Basic (Set_local vc) :: va)
-    | v_s, Basic (Tee_local vc) :: va -> (v_s, Basic (Tee_local vc) :: va)
-    | v_s, Basic (Get_global vc) :: va -> (v_s, Basic (Get_global vc) :: va)
-    | v_s, Basic (Set_global vc) :: va -> (v_s, Basic (Set_global vc) :: va)
+    | v_s, Basic (Local_get vc) :: va -> (v_s, Basic (Local_get vc) :: va)
+    | v_s, Basic (Local_set vc) :: va -> (v_s, Basic (Local_set vc) :: va)
+    | v_s, Basic (Local_tee vc) :: va -> (v_s, Basic (Local_tee vc) :: va)
+    | v_s, Basic (Global_get vc) :: va -> (v_s, Basic (Global_get vc) :: va)
+    | v_s, Basic (Global_set vc) :: va -> (v_s, Basic (Global_set vc) :: va)
     | v_s, Basic (Table_get vc) :: va -> (v_s, Basic (Table_get vc) :: va)
     | v_s, Basic (Table_set vc) :: va -> (v_s, Basic (Table_set vc) :: va)
     | v_s, Basic (Table_size vc) :: va -> (v_s, Basic (Table_size vc) :: va)
@@ -4528,8 +4528,8 @@ let rec split_v_s_es_aux
         (v_s, Basic (Load_lane_vec (vc, vd, ve, vf)) :: va)
     | v_s, Basic (Store_vec (vc, vd, ve)) :: va ->
         (v_s, Basic (Store_vec (vc, vd, ve)) :: va)
-    | v_s, Basic Current_memory :: va -> (v_s, Basic Current_memory :: va)
-    | v_s, Basic Grow_memory :: va -> (v_s, Basic Grow_memory :: va)
+    | v_s, Basic Memory_size :: va -> (v_s, Basic Memory_size :: va)
+    | v_s, Basic Memory_grow :: va -> (v_s, Basic Memory_grow :: va)
     | v_s, Basic (Memory_init vc) :: va -> (v_s, Basic (Memory_init vc) :: va)
     | v_s, Basic Memory_fill :: va -> (v_s, Basic Memory_fill :: va)
     | v_s, Basic Memory_copy :: va -> (v_s, Basic Memory_copy :: va)
@@ -5263,12 +5263,12 @@ let rec update_glob
     (let k = sglob_ind i j in
       list_update gs k (g_val_update (fun _ -> v) (nth gs k)));;
 
-let rec app_s_f_v_s_set_global
+let rec app_s_f_v_s_global_set
   k gs f v_s =
     (match v_s with [] -> (gs, (v_s, crash_invalid))
       | v1 :: v_sa -> (update_glob gs (f_inst f) k v1, (v_sa, Step_normal)));;
 
-let rec app_s_f_v_s_get_global
+let rec app_s_f_v_s_global_get
   k gs f v_s = (g_val (nth gs (sglob_ind (f_inst f) k)) :: v_s, Step_normal);;
 
 let rec store_tab1
@@ -5511,7 +5511,7 @@ let rec app_v_s_extract_vec
         (V_num (app_extract_vec sv sx i v1) :: v_sa, Step_normal)
       | V_ref _ :: _ -> (v_s, crash_invalid));;
 
-let rec app_f_v_s_set_local
+let rec app_f_v_s_local_set
   k f v_s =
     (let locs = f_locs f in
       (match v_s with [] -> (f, (v_s, crash_invalid))
@@ -5521,7 +5521,7 @@ let rec app_f_v_s_set_local
                    (v_sa, Step_normal))
             else (f, (v_s, crash_invalid)))));;
 
-let rec app_f_v_s_get_local
+let rec app_f_v_s_local_get
   k f v_s =
     (let locs = f_locs f in
       (if less_nat k (size_list locs) then (nth locs k :: v_s, Step_normal)
@@ -5551,12 +5551,6 @@ let rec app_f_v_s_ref_func
   x f v_s =
     (let fa = nth (funcsa (f_inst f)) x in
       (V_ref (ConstRefFunc fa) :: v_s, Step_normal));;
-
-let rec app_v_s_tee_local
-  k v_s =
-    (match v_s with [] -> (v_s, ([], crash_invalid))
-      | v1 :: v_sa ->
-        (v1 :: v1 :: v_sa, ([Basic (Set_local k)], Step_normal)));;
 
 let rec app_splat_vec
   sv v =
@@ -5591,6 +5585,12 @@ let rec app_v_s_shift_vec
       | V_num (ConstFloat64 _) :: _ -> (v_s, crash_invalid)
       | V_vec _ :: _ -> (v_s, crash_invalid)
       | V_ref _ :: _ -> (v_s, crash_invalid));;
+
+let rec app_v_s_local_tee
+  k v_s =
+    (match v_s with [] -> (v_s, ([], crash_invalid))
+      | v1 :: v_sa ->
+        (v1 :: v1 :: v_sa, ([Basic (Local_set k)], Step_normal)));;
 
 let rec app_binop_vec_v x = V128Wrapper.binop_vec x;;
 
@@ -6076,21 +6076,21 @@ let rec run_step_b_e
           (let (v_sa, (es_cont, a)) =
              app_s_f_v_s_call_indirect x y (tabs s) (funcs s) f v_s in
             (Config (d, s, update_fc_step fc v_sa es_cont, fcs), a))
-        | Get_local k ->
-          (let (v_sa, a) = app_f_v_s_get_local k f v_s in
+        | Local_get k ->
+          (let (v_sa, a) = app_f_v_s_local_get k f v_s in
             (Config (d, s, update_fc_step fc v_sa [], fcs), a))
-        | Set_local k ->
-          (let (fa, (v_sa, res)) = app_f_v_s_set_local k f v_s in
+        | Local_set k ->
+          (let (fa, (v_sa, res)) = app_f_v_s_local_set k f v_s in
            let fca = Frame_context (Redex (v_sa, es, b_es), lcs, nf, fa) in
             (Config (d, s, fca, fcs), res))
-        | Tee_local k ->
-          (let (v_sa, (es_cont, a)) = app_v_s_tee_local k v_s in
+        | Local_tee k ->
+          (let (v_sa, (es_cont, a)) = app_v_s_local_tee k v_s in
             (Config (d, s, update_fc_step fc v_sa es_cont, fcs), a))
-        | Get_global k ->
-          (let (v_sa, a) = app_s_f_v_s_get_global k (globs s) f v_s in
+        | Global_get k ->
+          (let (v_sa, a) = app_s_f_v_s_global_get k (globs s) f v_s in
             (Config (d, s, update_fc_step fc v_sa [], fcs), a))
-        | Set_global k ->
-          (let (gs, (v_sa, a)) = app_s_f_v_s_set_global k (globs s) f v_s in
+        | Global_set k ->
+          (let (gs, (v_sa, a)) = app_s_f_v_s_global_set k (globs s) f v_s in
             (Config
                (d, globs_update (fun _ -> gs) s, update_fc_step fc v_sa [],
                  fcs),
@@ -6135,10 +6135,10 @@ let rec run_step_b_e
             (Config
                (d, mems_update (fun _ -> ms) s, update_fc_step fc v_sa [], fcs),
               a))
-        | Current_memory ->
+        | Memory_size ->
           (let (v_sa, a) = app_s_f_v_s_mem_size (mems s) f v_s in
             (Config (d, s, update_fc_step fc v_sa [], fcs), a))
-        | Grow_memory ->
+        | Memory_grow ->
           (let (ms, (v_sa, a)) = app_s_f_v_s_mem_grow (mems s) f v_s in
             (Config
                (d, mems_update (fun _ -> ms) s, update_fc_step fc v_sa [], fcs),
@@ -6377,16 +6377,16 @@ let rec const_expr_p
             | (_, Br_if _) -> bot_pred | (_, Br_table (_, _)) -> bot_pred
             | (_, Return) -> bot_pred | (_, Call _) -> bot_pred
             | (_, Call_indirect (_, _)) -> bot_pred
-            | (_, Get_local _) -> bot_pred | (_, Set_local _) -> bot_pred
-            | (_, Tee_local _) -> bot_pred | (_, Get_global _) -> bot_pred
-            | (_, Set_global _) -> bot_pred | (_, Table_get _) -> bot_pred
+            | (_, Local_get _) -> bot_pred | (_, Local_set _) -> bot_pred
+            | (_, Local_tee _) -> bot_pred | (_, Global_get _) -> bot_pred
+            | (_, Global_set _) -> bot_pred | (_, Table_get _) -> bot_pred
             | (_, Table_set _) -> bot_pred | (_, Table_size _) -> bot_pred
             | (_, Table_grow _) -> bot_pred | (_, Load (_, _, _, _)) -> bot_pred
             | (_, Store (_, _, _, _)) -> bot_pred
             | (_, Load_vec (_, _, _)) -> bot_pred
             | (_, Load_lane_vec (_, _, _, _)) -> bot_pred
             | (_, Store_vec (_, _, _)) -> bot_pred
-            | (_, Current_memory) -> bot_pred | (_, Grow_memory) -> bot_pred
+            | (_, Memory_size) -> bot_pred | (_, Memory_grow) -> bot_pred
             | (_, Memory_init _) -> bot_pred | (_, Memory_fill) -> bot_pred
             | (_, Memory_copy) -> bot_pred | (_, Table_init (_, _)) -> bot_pred
             | (_, Table_copy (_, _)) -> bot_pred | (_, Table_fill _) -> bot_pred
@@ -6411,9 +6411,9 @@ let rec const_expr_p
               | (_, Br_if _) -> bot_pred | (_, Br_table (_, _)) -> bot_pred
               | (_, Return) -> bot_pred | (_, Call _) -> bot_pred
               | (_, Call_indirect (_, _)) -> bot_pred
-              | (_, Get_local _) -> bot_pred | (_, Set_local _) -> bot_pred
-              | (_, Tee_local _) -> bot_pred | (_, Get_global _) -> bot_pred
-              | (_, Set_global _) -> bot_pred | (_, Table_get _) -> bot_pred
+              | (_, Local_get _) -> bot_pred | (_, Local_set _) -> bot_pred
+              | (_, Local_tee _) -> bot_pred | (_, Global_get _) -> bot_pred
+              | (_, Global_set _) -> bot_pred | (_, Table_get _) -> bot_pred
               | (_, Table_set _) -> bot_pred | (_, Table_size _) -> bot_pred
               | (_, Table_grow _) -> bot_pred
               | (_, Load (_, _, _, _)) -> bot_pred
@@ -6421,7 +6421,7 @@ let rec const_expr_p
               | (_, Load_vec (_, _, _)) -> bot_pred
               | (_, Load_lane_vec (_, _, _, _)) -> bot_pred
               | (_, Store_vec (_, _, _)) -> bot_pred
-              | (_, Current_memory) -> bot_pred | (_, Grow_memory) -> bot_pred
+              | (_, Memory_size) -> bot_pred | (_, Memory_grow) -> bot_pred
               | (_, Memory_init _) -> bot_pred | (_, Memory_fill) -> bot_pred
               | (_, Memory_copy) -> bot_pred
               | (_, Table_init (_, _)) -> bot_pred
@@ -6449,9 +6449,9 @@ let rec const_expr_p
                 | (_, Br_if _) -> bot_pred | (_, Br_table (_, _)) -> bot_pred
                 | (_, Return) -> bot_pred | (_, Call _) -> bot_pred
                 | (_, Call_indirect (_, _)) -> bot_pred
-                | (_, Get_local _) -> bot_pred | (_, Set_local _) -> bot_pred
-                | (_, Tee_local _) -> bot_pred | (_, Get_global _) -> bot_pred
-                | (_, Set_global _) -> bot_pred | (_, Table_get _) -> bot_pred
+                | (_, Local_get _) -> bot_pred | (_, Local_set _) -> bot_pred
+                | (_, Local_tee _) -> bot_pred | (_, Global_get _) -> bot_pred
+                | (_, Global_set _) -> bot_pred | (_, Table_get _) -> bot_pred
                 | (_, Table_set _) -> bot_pred | (_, Table_size _) -> bot_pred
                 | (_, Table_grow _) -> bot_pred
                 | (_, Load (_, _, _, _)) -> bot_pred
@@ -6459,7 +6459,7 @@ let rec const_expr_p
                 | (_, Load_vec (_, _, _)) -> bot_pred
                 | (_, Load_lane_vec (_, _, _, _)) -> bot_pred
                 | (_, Store_vec (_, _, _)) -> bot_pred
-                | (_, Current_memory) -> bot_pred | (_, Grow_memory) -> bot_pred
+                | (_, Memory_size) -> bot_pred | (_, Memory_grow) -> bot_pred
                 | (_, Memory_init _) -> bot_pred | (_, Memory_fill) -> bot_pred
                 | (_, Memory_copy) -> bot_pred
                 | (_, Table_init (_, _)) -> bot_pred
@@ -6488,9 +6488,9 @@ let rec const_expr_p
                   | (_, Br_table (_, _)) -> bot_pred | (_, Return) -> bot_pred
                   | (_, Call _) -> bot_pred
                   | (_, Call_indirect (_, _)) -> bot_pred
-                  | (_, Get_local _) -> bot_pred | (_, Set_local _) -> bot_pred
-                  | (_, Tee_local _) -> bot_pred | (_, Get_global _) -> bot_pred
-                  | (_, Set_global _) -> bot_pred | (_, Table_get _) -> bot_pred
+                  | (_, Local_get _) -> bot_pred | (_, Local_set _) -> bot_pred
+                  | (_, Local_tee _) -> bot_pred | (_, Global_get _) -> bot_pred
+                  | (_, Global_set _) -> bot_pred | (_, Table_get _) -> bot_pred
                   | (_, Table_set _) -> bot_pred | (_, Table_size _) -> bot_pred
                   | (_, Table_grow _) -> bot_pred
                   | (_, Load (_, _, _, _)) -> bot_pred
@@ -6498,8 +6498,7 @@ let rec const_expr_p
                   | (_, Load_vec (_, _, _)) -> bot_pred
                   | (_, Load_lane_vec (_, _, _, _)) -> bot_pred
                   | (_, Store_vec (_, _, _)) -> bot_pred
-                  | (_, Current_memory) -> bot_pred
-                  | (_, Grow_memory) -> bot_pred
+                  | (_, Memory_size) -> bot_pred | (_, Memory_grow) -> bot_pred
                   | (_, Memory_init _) -> bot_pred
                   | (_, Memory_fill) -> bot_pred | (_, Memory_copy) -> bot_pred
                   | (_, Table_init (_, _)) -> bot_pred
@@ -6528,15 +6527,15 @@ let rec const_expr_p
                   | (_, Br_table (_, _)) -> bot_pred | (_, Return) -> bot_pred
                   | (_, Call _) -> bot_pred
                   | (_, Call_indirect (_, _)) -> bot_pred
-                  | (_, Get_local _) -> bot_pred | (_, Set_local _) -> bot_pred
-                  | (_, Tee_local _) -> bot_pred
-                  | (c, Get_global k) ->
+                  | (_, Local_get _) -> bot_pred | (_, Local_set _) -> bot_pred
+                  | (_, Local_tee _) -> bot_pred
+                  | (c, Global_get k) ->
                     bind (if_pred (less_nat k (size_list (global c))))
                       (fun () ->
                         bind (eq_i_i equal_mut (tg_mut (nth (global c) k))
                                T_immut)
                           (fun () -> single ()))
-                  | (_, Set_global _) -> bot_pred | (_, Table_get _) -> bot_pred
+                  | (_, Global_set _) -> bot_pred | (_, Table_get _) -> bot_pred
                   | (_, Table_set _) -> bot_pred | (_, Table_size _) -> bot_pred
                   | (_, Table_grow _) -> bot_pred
                   | (_, Load (_, _, _, _)) -> bot_pred
@@ -6544,8 +6543,7 @@ let rec const_expr_p
                   | (_, Load_vec (_, _, _)) -> bot_pred
                   | (_, Load_lane_vec (_, _, _, _)) -> bot_pred
                   | (_, Store_vec (_, _, _)) -> bot_pred
-                  | (_, Current_memory) -> bot_pred
-                  | (_, Grow_memory) -> bot_pred
+                  | (_, Memory_size) -> bot_pred | (_, Memory_grow) -> bot_pred
                   | (_, Memory_init _) -> bot_pred
                   | (_, Memory_fill) -> bot_pred | (_, Memory_copy) -> bot_pred
                   | (_, Table_init (_, _)) -> bot_pred
@@ -6855,11 +6853,11 @@ let rec extract_funcidx_b_e = function Ref_func x -> Some x
                               | Return -> None
                               | Call v -> None
                               | Call_indirect (v, va) -> None
-                              | Get_local v -> None
-                              | Set_local v -> None
-                              | Tee_local v -> None
-                              | Get_global v -> None
-                              | Set_global v -> None
+                              | Local_get v -> None
+                              | Local_set v -> None
+                              | Local_tee v -> None
+                              | Global_get v -> None
+                              | Global_set v -> None
                               | Table_get v -> None
                               | Table_set v -> None
                               | Table_size v -> None
@@ -6869,8 +6867,8 @@ let rec extract_funcidx_b_e = function Ref_func x -> Some x
                               | Load_vec (v, va, vb) -> None
                               | Load_lane_vec (v, va, vb, vc) -> None
                               | Store_vec (v, va, vb) -> None
-                              | Current_memory -> None
-                              | Grow_memory -> None
+                              | Memory_size -> None
+                              | Memory_grow -> None
                               | Memory_init v -> None
                               | Memory_fill -> None
                               | Memory_copy -> None

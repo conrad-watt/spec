@@ -297,17 +297,17 @@ let rec convert_instr instr =
 	| Ast.Select None -> Select None
   | Ast.Select (Some []) -> Select None
   | Ast.Select (Some (t::_)) -> Select (Some (convert_t t))
-	| Ast.LocalGet n -> Get_local (var_to_nat n)
-	| Ast.LocalSet n -> Set_local (var_to_nat n)
-	| Ast.LocalTee n -> Tee_local (var_to_nat n)
-	| Ast.GlobalGet n -> Get_global (var_to_nat n)
-	| Ast.GlobalSet n -> Set_global (var_to_nat n)
+	| Ast.LocalGet n -> Local_get (var_to_nat n)
+	| Ast.LocalSet n -> Local_set (var_to_nat n)
+	| Ast.LocalTee n -> Local_tee (var_to_nat n)
+	| Ast.GlobalGet n -> Global_get (var_to_nat n)
+	| Ast.GlobalSet n -> Global_set (var_to_nat n)
 	| Ast.Load lop -> let {Ast.ty; Ast.align; Ast.offset; Ast.pack} = lop in
 	                  Load ((convert_t_num ty), convert_load_tp_sx pack, (ocaml_int_to_nat align), (ocaml_int32_to_nat offset))
 	| Ast.Store sop -> let {Ast.ty; Ast.align; Ast.offset; Ast.pack} = sop in
 	                   Store ((convert_t_num ty), convert_store_tp pack, (ocaml_int_to_nat align), (ocaml_int32_to_nat offset))
-	| Ast.MemorySize -> Current_memory
-	| Ast.MemoryGrow -> Grow_memory
+	| Ast.MemorySize -> Memory_size
+	| Ast.MemoryGrow -> Memory_grow
 	| Ast.Const v -> EConstNum (convert_value_num v.it)
 	| Ast.Test top -> convert_testop top
 	| Ast.Compare cop -> convert_compareop cop
