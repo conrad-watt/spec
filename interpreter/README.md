@@ -8,24 +8,13 @@ This is a fork of the official reference interpreter which can optionally execut
 
 The extracted verified code, and harness, can be found [here](https://github.com/conrad-watt/spec/tree/wasmtime_fuzzing/interpreter/verified).
 
-This interpreter currently implements the Wasm MVP, plus the following features:
-- nontrapping-float-to-int
-- sign-extension-ops
-- multi-value
-- SIMD (defers to base interpreter)
+This interpreter currently implements the Wasm 2.0.
 
 Features implemented by deferring to the base interpreter axiomatically in the formal model:
 - parsing
 - floating point (`f32`, `f64`)
 - host calls
 - SIMD
-
-Features supported by the base interpreter but not yet supported by the formal model:
-
-- bulk instructions
-- reference types
-
-When the interpreter is run with `-isa`, executing a module containing one of these unsupported features will throw `PostMVP` (see `ast_convert.ml`).
 
 Original readme follows...
 

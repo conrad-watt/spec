@@ -4,7 +4,6 @@ open Types
 open Values
 open Script
 
-exception PostMVP
 exception InvalidModule
 
 let convert_t_num = function
@@ -12,11 +11,9 @@ let convert_t_num = function
   | F32Type -> T_f32
   | I64Type -> T_i64
   | F64Type -> T_f64
-  | _ -> raise PostMVP
 
 let convert_t_vec = function
   | V128Type -> T_v128
-  | _ -> raise PostMVP
 
 let convert_t_ref = function
   | FuncRefType -> T_func_ref
@@ -26,7 +23,6 @@ let convert_t = function
   | NumType t -> T_num (convert_t_num t)
   | VecType t -> T_vec (convert_t_vec t)
   | RefType t -> T_ref (convert_t_ref t)
-  | _ -> raise PostMVP
 
 let convert_vltype vl_type = List.map convert_t vl_type
 
@@ -41,7 +37,7 @@ let convert_tp = function
 	| Types.Pack8 -> Tp_i8
 	| Types.Pack16 -> Tp_i16
 	| Types.Pack32 -> Tp_i32
-        | _ -> raise PostMVP
+        | Types.Pack64 -> failwith "ill-formed: only 8, 16, and 32 packing is supported."
 
 let convert_sx = function
 	| Types.SX -> S
@@ -59,14 +55,12 @@ let convert_value_vec = function
 let convert_value_ref = function
   | NullRef t_r -> (ConstNull (convert_t_ref t_r))
   | ExternRef x -> (ConstRefExtern (Host_ref  x))
-  (* | ConstRefFunc i -> () *)
-  | _ -> raise PostMVP
+  | _ -> failwith "unsupported ref_ representation."
 
 let convert_value = function
         | Num n -> V_num (convert_value_num n)
         | Vec v-> V_vec (convert_value_vec v)
         | Ref r -> V_ref (convert_value_ref r)
-        | _ -> raise PostMVP
 
 let convert_value_num_rev = function
 	| ConstInt32 c -> I32 (isabelle_int32_to_ocaml_int32 c)
@@ -84,13 +78,13 @@ let convert_t_ref_rev = function
   let convert_value_ref_rev = function
 	| (ConstRefExtern (Host_ref  x)) -> ExternRef x
   | (ConstNull t_r) -> NullRef (convert_t_ref_rev t_r)
-  | _ -> raise PostMVP
+  | (ConstRefFunc _) -> failwith "ill-formed: administrative instruction."
+  | (ConstRefExtern _) -> failwith "ill-formed: administrative instruction."
 
 let convert_value_rev = function
         | V_num v -> Num (convert_value_num_rev v)
         | V_vec v -> Vec (convert_value_vec_rev v)
         | V_ref v -> (Ref (convert_value_ref_rev v))
-        | _ -> raise PostMVP
 
 let convert_int_testop = function
 	| Ast.IntOp.Eqz -> Eqz
@@ -184,7 +178,6 @@ let t_reinterpret = function
 	| T_i64 -> T_f64
 	| T_f32 -> T_i32
 	| T_f64 -> T_i64
-        | _ -> raise PostMVP
 
 let convert_int_convertop t1 = function
 	| Ast.IntOp.ExtendSI32 -> Cvtop (t1, Convert, T_i32, Some (Nonsat, S))
@@ -199,7 +192,6 @@ let convert_int_convertop t1 = function
 	| Ast.IntOp.TruncSatSF64 -> Cvtop (t1, Convert, T_f64, Some (Sat, S))
 	| Ast.IntOp.TruncSatUF64 -> Cvtop (t1, Convert, T_f64, Some (Sat, U))
 	| Ast.IntOp.ReinterpretFloat -> Cvtop (t1, Reinterpret, t_reinterpret t1, None)
-        | _ -> raise PostMVP
 
 let convert_float_convertop t1 = function
   | Ast.FloatOp.ConvertSI32 -> Cvtop (t1, Convert, T_i32, Some (Nonsat, S))
@@ -355,7 +347,6 @@ let rec convert_instr instr =
         | Ast.TableFill x -> Table_fill (var_to_nat x)
         | Ast.TableCopy (x, y) -> Table_copy (var_to_nat x, var_to_nat y)
         | Ast.TableInit (x, y) -> Table_init (var_to_nat x, var_to_nat y)
-        | _ -> raise PostMVP
 
 and convert_instrs instrs = List.map convert_instr instrs
 
