@@ -1,5 +1,7 @@
 ![Build Status](https://github.com/WebAssembly/spec/actions/workflows/main.yml/badge.svg)
 
+If you're here to see the Wasmtime fuzz oracle, you should look at the [wasmtime_fuzzing](https://github.com/conrad-watt/spec/tree/wasmtime_fuzzing/interpreter) branch.
+
 # spec
 
 This repository holds the sources for the WebAssembly draft specification
