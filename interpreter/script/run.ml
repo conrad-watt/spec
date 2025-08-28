@@ -1,9 +1,11 @@
 open Script
 open Source
-
+open WasmRef_Isa
+open LibAux
 
 (* Errors & Tracing *)
 
+module Script = Error.Make ()
 module Abort = Error.Make ()
 module Assert = Error.Make ()
 module IO = Error.Make ()
@@ -112,6 +114,7 @@ let input_from get_script run =
   | Eval.Exhaustion (at, msg) -> error at "resource exhaustion" msg
   | Eval.Crash (at, msg) -> error at "runtime crash" msg
   | Encode.Code (at, msg) -> error at "encoding error" msg
+  | Script.Error (at, msg) -> error at "script error" msg
   | IO (at, msg) -> error at "i/o error" msg
   | Assert (at, msg) -> error at "assertion failure" msg
   | Abort _ -> false
@@ -239,7 +242,7 @@ let print_module x_opt m =
   flush_all ()
 
 let print_values vs =
-  let ts = List.map Values.type_of vs in
+  let ts = List.map Values.type_of_value vs in
   Printf.printf "%s : %s\n"
     (Values.string_of_values vs) (Types.string_of_value_types ts);
   flush_all ()
@@ -250,16 +253,35 @@ let string_of_nan = function
 
 let type_of_result r =
   match r with
-  | LitResult v -> Values.type_of v.it
-  | NanResult n -> Values.type_of n.it
+  | NumResult (NumPat n) -> Types.NumType (Values.type_of_num n.it)
+  | NumResult (NanPat n) -> Types.NumType (Values.type_of_num n.it)
+  | VecResult (VecPat _) -> Types.VecType Types.V128Type
+  | RefResult (RefPat r) -> Types.RefType (Values.type_of_ref r.it)
+  | RefResult (RefTypePat t) -> Types.RefType t
 
-let string_of_result r =
-  match r with
-  | LitResult v -> Values.string_of_value v.it
-  | NanResult nanop ->
+let string_of_num_pat (p : num_pat) =
+  match p with
+  | NumPat n -> Values.string_of_num n.it
+  | NanPat nanop ->
     match nanop.it with
     | Values.I32 _ | Values.I64 _ -> assert false
     | Values.F32 n | Values.F64 n -> string_of_nan n
+
+let string_of_vec_pat (p : vec_pat) =
+  match p with
+  | VecPat (Values.V128 (shape, ns)) ->
+    String.concat " " (List.map string_of_num_pat ns)
+
+let string_of_ref_pat (p : ref_pat) =
+  match p with
+  | RefPat r -> Values.string_of_ref r.it
+  | RefTypePat t -> Types.string_of_refed_type t
+
+let string_of_result r =
+  match r with
+  | NumResult np -> string_of_num_pat np
+  | VecResult vp -> string_of_vec_pat vp
+  | RefResult rp -> string_of_ref_pat rp
 
 let string_of_results = function
   | [r] -> string_of_result r
@@ -276,11 +298,37 @@ let print_results rs =
 
 module Map = Map.Make(String)
 
+
 let quote : script ref = ref []
 let scripts : script Map.t ref = ref Map.empty
 let modules : Ast.module_ Map.t ref = ref Map.empty
 let instances : Instance.module_inst Map.t ref = ref Map.empty
 let registry : Instance.module_inst Map.t ref = ref Map.empty
+
+let exports_isa : ((string * WasmRef_Isa.v_ext) list) Map_isa.t ref = ref Map_isa.empty
+
+(* let store_isa = ref (WasmRef_Isa.make_empty_store_m ()) *)
+let store_isa = ref (WasmRef_Isa.S_ext ([],[],[],[],[],[],()))
+
+let configure_isa () =
+  let (s', spectest_exports) = Spectest_isa.install_spectest_isa !store_isa in
+  store_isa := s'; exports_isa := Map_isa.add "spectest" spectest_exports !exports_isa
+
+let m_name_isa x_opt =
+  match x_opt with
+  | None -> ""
+  | Some x ->x.it
+
+let find_export_isa m_str imp_str : WasmRef_Isa.v_ext =
+   trace ("(Isabelle) fetching export " ^ m_str ^ " " ^ imp_str);
+   try List.assoc imp_str (Map_isa.find m_str !exports_isa) with
+   | e -> trace ("(Isabelle) error finding export " ^ m_str ^ " " ^ imp_str); raise e
+
+let match_import_isa (m_imp : 'a WasmRef_Isa.module_import_ext) : WasmRef_Isa.v_ext =
+  match m_imp with
+  | WasmRef_Isa.Module_import_ext (m_str, imp_str, _, _) ->
+    try find_export_isa m_str imp_str with
+    | e -> trace ("(Isabelle) error matching import " ^ m_str ^ " " ^ imp_str); raise (Import.Unknown(no_region, "(Isabelle) unknown import"))
 
 let bind map x_opt y =
   let map' =
@@ -288,6 +336,13 @@ let bind map x_opt y =
     | None -> !map
     | Some x -> Map.add x.it y !map
   in map := Map.add "" y map'
+
+let bind_isa map x_opt y =
+  let map' =
+    match x_opt with
+    | None -> !map
+    | Some x -> Map_isa.add x.it y !map
+  in map := Map_isa.add "" y map'
 
 let lookup category map x_opt at =
   let key = match x_opt with None -> "" | Some x -> x.it in
@@ -319,46 +374,123 @@ let rec run_definition def : Ast.module_ =
     let def' = Parse.string_to_module s in
     run_definition def'
 
+let rec run_definition_isa def : (unit WasmRef_Isa.m_ext) =
+  Ast_convert.convert_module ((run_definition def).it)
+
+let invoke_isa (vs : Values.value list) (n : WasmRef_Isa.nat) : Values.value list =
+  let vs_isa = List.map Ast_convert.convert_value vs in
+  let config = (!store_isa, (vs_isa, n)) in
+  let (s', res) = WasmRef_Isa.run_invoke config in
+  store_isa := s';
+  match res with
+  | WasmRef_Isa.RValue vs_isa' -> List.rev_map Ast_convert.convert_value_rev vs_isa'
+  | WasmRef_Isa.RTrap str -> raise (Eval.Trap (no_region, "(Isabelle) trap: " ^ str))
+  | WasmRef_Isa.(RCrash (Error_exhaustion str)) -> raise (Eval.Exhaustion (no_region, "(Isabelle) call stack exhausted"))
+  | WasmRef_Isa.(RCrash (Error_invalid str)) -> raise (Eval.Crash (no_region, "(Isabelle) error: " ^ str))
+  | WasmRef_Isa.(RCrash (Error_invariant str)) -> raise (Eval.Crash (no_region, "(Isabelle) error: " ^ str))
+ 
+(* | WasmRef_Isa.(RCrash CExhaustion)  -> raise (Eval.Exhaustion (no_region, "(Isabelle) call stack exhausted"))
+  | _ -> raise (Eval.Crash (no_region, "(Isabelle) wrong function index, or wrong number or types of arguments"))
+*)
+
+(* let global_load_isa (n : WasmRef_Isa.nat) : Values.value =
+  Ast_convert.convert_value_rev (WasmRef_Isa.g_val (Array.get (WasmRef_Isa.globs !store_isa) (Z.to_int (WasmRef_Isa.integer_of_nat n)))) *)
+  let global_load_isa (n : WasmRef_Isa.nat) : Values.value =
+    Ast_convert.convert_value_rev (WasmRef_Isa.g_val (WasmRef_Isa.nth (WasmRef_Isa.globs !store_isa) n))
+    
 let run_action act : Values.value list =
   match act.it with
   | Invoke (x_opt, name, vs) ->
     trace ("Invoking function \"" ^ Ast.string_of_name name ^ "\"...");
-    let inst = lookup_instance x_opt act.at in
-    (match Instance.export inst name with
-    | Some (Instance.ExternFunc f) ->
-      Eval.invoke f (List.map (fun v -> v.it) vs)
-    | Some _ -> Assert.error act.at "export is not a function"
-    | None -> Assert.error act.at "undefined export"
-    )
+    if !Flags.use_isa then
+      (match find_export_isa (m_name_isa x_opt) (Ast.string_of_name name) with
+         (* TODO: error on wrong number/typeof arguments *)
+       | WasmRef_Isa.Ext_func n -> invoke_isa (List.map (fun v -> v.it) vs) n
+       | (v : WasmRef_Isa.v_ext) -> Assert.error act.at "(Isabelle) export is not a function"
+       | exception Not_found -> Assert.error act.at "(Isabelle) undefined export"
+      )
+    else
+      (let inst = lookup_instance x_opt act.at in
+      (match Instance.export inst name with
+       | Some (Instance.ExternFunc f) ->
+           let Types.FuncType (ins, out) = Func.type_of f in
+           if List.length vs <> List.length ins then
+             Script.error act.at "wrong number of arguments";
+             List.iter2 (fun v t -> if Values.type_of_value v.it <> t then Script.error v.at "wrong type of argument") vs ins;
+             Eval.invoke f (List.map (fun v -> v.it) vs)
+       | Some _ -> Assert.error act.at "export is not a function"
+       | None -> Assert.error act.at "undefined export"
+    ))
 
  | Get (x_opt, name) ->
     trace ("Getting global \"" ^ Ast.string_of_name name ^ "\"...");
-    let inst = lookup_instance x_opt act.at in
-    (match Instance.export inst name with
-    | Some (Instance.ExternGlobal gl) -> [Global.load gl]
-    | Some _ -> Assert.error act.at "export is not a global"
-    | None -> Assert.error act.at "undefined export"
-    )
+    if !Flags.use_isa then
+      (match find_export_isa (m_name_isa x_opt) (Ast.string_of_name name) with
+       | WasmRef_Isa.Ext_glob n -> [global_load_isa n]
+       | (v : WasmRef_Isa.v_ext) -> Assert.error act.at "(Isabelle) export is not a global"
+       | exception e -> Assert.error act.at "(Isabelle) wrong global index, or undefined export"
+      )
+    else
+      (let inst = lookup_instance x_opt act.at in
+      (match Instance.export inst name with
+      | Some (Instance.ExternGlobal gl) -> [Global.load gl]
+      | Some _ -> Assert.error act.at "export is not a global"
+      | None -> Assert.error act.at "undefined export"
+      ))
+
+
+let assert_nan_pat n nan =
+  let open Values in
+  match n, nan.it with
+  | F32 z, F32 CanonicalNan -> z = F32.pos_nan || z = F32.neg_nan
+  | F64 z, F64 CanonicalNan -> z = F64.pos_nan || z = F64.neg_nan
+  | F32 z, F32 ArithmeticNan ->
+    let pos_nan = F32.to_bits F32.pos_nan in
+    Int32.logand (F32.to_bits z) pos_nan = pos_nan
+  | F64 z, F64 ArithmeticNan ->
+    let pos_nan = F64.to_bits F64.pos_nan in
+    Int64.logand (F64.to_bits z) pos_nan = pos_nan
+  | _, _ -> false
+
+let assert_num_pat n np =
+  match np with
+    | NumPat n' -> n = n'.it
+    | NanPat nanop -> assert_nan_pat n nanop
+
+let assert_vec_pat v p =
+  let open Values in
+  match v, p with
+  | V128 v, VecPat (V128 (shape, ps)) ->
+    let extract = match shape with
+      | V128.I8x16 () -> fun v i -> I32 (V128.I8x16.extract_lane_s i v)
+      | V128.I16x8 () -> fun v i -> I32 (V128.I16x8.extract_lane_s i v)
+      | V128.I32x4 () -> fun v i -> I32 (V128.I32x4.extract_lane_s i v)
+      | V128.I64x2 () -> fun v i -> I64 (V128.I64x2.extract_lane_s i v)
+      | V128.F32x4 () -> fun v i -> F32 (V128.F32x4.extract_lane i v)
+      | V128.F64x2 () -> fun v i -> F64 (V128.F64x2.extract_lane i v)
+    in
+    List.for_all2 assert_num_pat
+      (List.init (V128.num_lanes shape) (extract v)) ps
+
+let assert_ref_pat r p =
+  match r, p with
+  | r, RefPat r' -> r = r'.it
+  | Instance.FuncRef _, RefTypePat Types.FuncRefType
+  | ExternRef _, RefTypePat Types.ExternRefType -> true
+  | _ -> false
+
+let assert_pat v r =
+  let open Values in
+  match v, r with
+  | Num n, NumResult np -> assert_num_pat n np
+  | Vec v, VecResult vp -> assert_vec_pat v vp
+  | Ref r, RefResult rp -> assert_ref_pat r rp
+  | _, _ -> false
 
 let assert_result at got expect =
-  let open Values in
   if
     List.length got <> List.length expect ||
-    List.exists2 (fun v r ->
-      match r with
-      | LitResult v' -> v <> v'.it
-      | NanResult nanop ->
-        match nanop.it, v with
-        | F32 CanonicalNan, F32 z -> z <> F32.pos_nan && z <> F32.neg_nan
-        | F64 CanonicalNan, F64 z -> z <> F64.pos_nan && z <> F64.neg_nan
-        | F32 ArithmeticNan, F32 z ->
-          let pos_nan = F32.to_bits F32.pos_nan in
-          Int32.logand (F32.to_bits z) pos_nan <> pos_nan
-        | F64 ArithmeticNan, F64 z ->
-          let pos_nan = F64.to_bits F64.pos_nan in
-          Int64.logand (F64.to_bits z) pos_nan <> pos_nan
-        | _, _ -> false
-    ) got expect
+    List.exists2 (fun v r -> not (assert_pat v r)) got expect
   then begin
     print_string "Result: "; print_values got;
     print_string "Expect: "; print_results expect;
@@ -366,13 +498,17 @@ let assert_result at got expect =
   end
 
 let assert_message at name msg re =
-  if
-    String.length msg < String.length re ||
-    String.sub msg 0 (String.length re) <> re
-  then begin
-    print_endline ("Result: \"" ^ msg ^ "\"");
-    print_endline ("Expect: \"" ^ re ^ "\"");
-    Assert.error at ("wrong " ^ name ^ " error")
+  if !Flags.use_isa then
+    trace ("(Isabelle) desire " ^ name ^ " error \"" ^ re ^ "\"")
+  else begin
+    if
+      String.length msg < String.length re ||
+      String.sub msg 0 (String.length re) <> re
+    then begin
+      print_endline ("Result: \"" ^ msg ^ "\"");
+      print_endline ("Expect: \"" ^ re ^ "\"");
+      Assert.error at ("wrong " ^ name ^ " error")
+    end
   end
 
 let run_assertion ass =
@@ -387,9 +523,14 @@ let run_assertion ass =
 
   | AssertInvalid (def, re) ->
     trace "Asserting invalid...";
+    let m = run_definition def in
     (match
-      let m = run_definition def in
-      Valid.check_module m
+      (if !Flags.use_isa then
+        let m_isa = Ast_convert.convert_module m.it in
+        Valid.check_module_isa m_isa
+      else
+        Valid.check_module m
+      )
     with
     | exception Valid.Invalid (_, msg) ->
       assert_message ass.at "validation" msg re
@@ -399,27 +540,57 @@ let run_assertion ass =
   | AssertUnlinkable (def, re) ->
     trace "Asserting unlinkable...";
     let m = run_definition def in
-    if not !Flags.unchecked then Valid.check_module m;
-    (match
-      let imports = Import.link m in
-      ignore (Eval.init m imports)
-    with
-    | exception (Import.Unknown (_, msg) | Eval.Link (_, msg)) ->
-      assert_message ass.at "linking" msg re
-    | _ -> Assert.error ass.at "expected linking error"
+    (if !Flags.use_isa then
+       try
+         (let m_isa = Ast_convert.convert_module m.it in
+         if not !Flags.unchecked then Valid.check_module_isa m_isa;
+         let imports_isa = List.map match_import_isa (WasmRef_Isa.m_imports m_isa) in
+         (match WasmRef_Isa.interp_instantiate_init !store_isa m_isa imports_isa  with
+          | (s', WasmRef_Isa.RI_res _) -> store_isa := s'; Assert.error ass.at "expected linking error"
+          | (s',_) -> store_isa := s'; assert_message ass.at "linking" "" re
+         ))
+       with
+       | (Import.Unknown (_, msg) | Eval.Link (_, msg)) ->
+         assert_message ass.at "linking" msg re
+       | _ -> Assert.error ass.at "expected linking error"
+     else
+       (if not !Flags.unchecked then Valid.check_module m;
+       (match
+         let imports = Import.link m in
+         ignore (Eval.init m imports)
+       with
+       | exception (Import.Unknown (_, msg) | Eval.Link (_, msg)) ->
+         assert_message ass.at "linking" msg re
+       | _ -> Assert.error ass.at "expected linking error"
+       ))
     )
 
   | AssertUninstantiable (def, re) ->
-    trace "Asserting trap...";
+    trace "Asserting uninstantiable...";
     let m = run_definition def in
-    if not !Flags.unchecked then Valid.check_module m;
-    (match
-      let imports = Import.link m in
-      ignore (Eval.init m imports)
-    with
-    | exception Eval.Trap (_, msg) ->
-      assert_message ass.at "instantiation" msg re
-    | _ -> Assert.error ass.at "expected instantiation error"
+    (if !Flags.use_isa then
+       try
+         (let m_isa = Ast_convert.convert_module m.it in
+         if not !Flags.unchecked then Valid.check_module_isa m_isa;
+         let imports_isa = List.map match_import_isa (WasmRef_Isa.m_imports m_isa) in
+         (match WasmRef_Isa.interp_instantiate_init !store_isa m_isa imports_isa  with
+          | (s', WasmRef_Isa.RI_res(inst, exps, _)) -> store_isa := s'
+          | (s', _) -> store_isa := s'; assert_message ass.at "instantiation" "" re
+         ))
+       with
+       | (Eval.Trap (_, msg)) ->
+         assert_message ass.at "instantiation" msg re
+       | _ -> Assert.error ass.at "expected instantiation error"
+     else
+       (if not !Flags.unchecked then Valid.check_module m;
+       (match
+         let imports = Import.link m in
+         ignore (Eval.init m imports)
+       with
+       | exception (Eval.Trap (_, msg)) ->
+         assert_message ass.at "instantiation" msg re
+       | _ -> Assert.error ass.at "expected instantiation error"
+       ))
     )
 
   | AssertReturn (act, rs) ->
@@ -448,30 +619,55 @@ let rec run_command cmd =
   | Module (x_opt, def) ->
     quote := cmd :: !quote;
     let m = run_definition def in
-    if not !Flags.unchecked then begin
-      trace "Checking...";
-      Valid.check_module m;
-      if !Flags.print_sig then begin
-        trace "Signature:";
-        print_module x_opt m
-      end
-    end;
     bind scripts x_opt [cmd];
     bind modules x_opt m;
-    if not !Flags.dry then begin
-      trace "Initializing...";
-      let imports = Import.link m in
-      let inst = Eval.init m imports in
-      bind instances x_opt inst
-    end
+    (if !Flags.use_isa then
+       try
+         (let m_isa = Ast_convert.convert_module m.it in
+          if not !Flags.unchecked then begin
+            trace "Checking...";
+            Valid.check_module_isa m_isa;
+            if !Flags.print_sig then failwith "NYI"
+          end;
+          if not !Flags.dry then begin
+            let imports_isa = List.map match_import_isa (WasmRef_Isa.m_imports m_isa) in
+            (match WasmRef_Isa.interp_instantiate_init !store_isa m_isa imports_isa with
+              | (s', WasmRef_Isa.RI_res(inst, exps, _)) ->
+                  store_isa := s';
+                  trace "Initializing...";
+                  bind_isa exports_isa x_opt (List.map (fun x -> WasmRef_Isa.(e_name x, e_desc x)) exps)
+              | (s',_) -> store_isa := s'; failwith "(Isabelle) instantiation failure"
+            )
+          end)
+       with
+       | e -> trace ("(Isabelle) module processing error at " ^ (string_of_region cmd.at)); raise e
+    else
+      (if not !Flags.unchecked then begin
+        trace "Checking...";
+        Valid.check_module m;
+        if !Flags.print_sig then begin
+          trace "Signature:";
+          print_module x_opt m
+        end
+      end;
+      if not !Flags.dry then begin
+        trace "Initializing...";
+        let imports = Import.link m in
+        let inst = Eval.init m imports in
+        bind instances x_opt inst
+      end))
 
   | Register (name, x_opt) ->
     quote := cmd :: !quote;
     if not !Flags.dry then begin
       trace ("Registering module \"" ^ Ast.string_of_name name ^ "\"...");
-      let inst = lookup_instance x_opt cmd.at in
-      registry := Map.add (Utf8.encode name) inst !registry;
-      Import.register name (lookup_registry (Utf8.encode name))
+      (if !Flags.use_isa then
+        (let exps = Map_isa.find (m_name_isa x_opt) !exports_isa in
+        exports_isa := Map_isa.add (Ast.string_of_name name) exps !exports_isa)
+      else
+        (let inst = lookup_instance x_opt cmd.at in
+        registry := Map.add (Utf8.encode name) inst !registry;
+        Import.register name (lookup_registry (Utf8.encode name))))
     end
 
   | Action act ->

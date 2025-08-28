@@ -1,5 +1,5 @@
 let name = "wasm"
-let version = "1.0"
+let version = "1.1"
 
 let configure () =
   Import.register (Utf8.decode "spectest") Spectest.lookup;
@@ -31,13 +31,15 @@ let argspec = Arg.align
   "-h", Arg.Clear Flags.harness, " exclude harness for JS conversion";
   "-d", Arg.Set Flags.dry, " dry, do not run program";
   "-t", Arg.Set Flags.trace, " trace execution";
-  "-v", Arg.Unit banner, " show version"
+  "-v", Arg.Unit banner, " show version";
+  "-isa", Arg.Set Flags.use_isa, " use extracted Isabelle implementation"
 ]
 
 let () =
   Printexc.record_backtrace true;
   try
     configure ();
+    Run.configure_isa ();
     Arg.parse argspec
       (fun file -> add_arg ("(input " ^ quote file ^ ")")) usage;
     List.iter (fun arg -> if not (Run.run_string arg) then exit 1) !args;
