@@ -110,7 +110,7 @@ let v128 s = V128.of_bits (get_string (Types.vec_size Types.V128Type) s)
 let len32 s =
   let pos = pos s in
   let n = vu32 s in
-  if I32.le_u n (Int32.of_int (len s)) then Int32.to_int n else
+  if I32.le_u n (Int32.of_int (len s - pos)) then Int32.to_int n else
     error s pos "length out of bounds"
 
 let bool s = (vu1 s = 1)
@@ -210,7 +210,7 @@ let zero s = expect 0x00 s "zero byte expected"
 
 let memop s =
   let align = vu32 s in
-  require (I32.le_u align 32l) s (pos s - 1) "malformed memop flags";
+  require (I32.lt_u align 32l) s (pos s - 1) "malformed memop flags";
   let offset = vu32 s in
   Int32.to_int align, offset
 
