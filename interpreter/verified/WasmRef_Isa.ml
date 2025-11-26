@@ -1072,11 +1072,8 @@ module WasmRef_Isa : sig
   val split_v_s_b_s : b_e list -> v list * b_e list
   val split_v_s_es_aux : v list -> e list -> v list * e list
   val split_v_s_es : e list -> v list * e list
-  val bin_rsplit_rev : nat -> nat -> int -> int list
-  val word_rsplit_rev : 'a len -> 'b len -> 'a word -> 'b word list
-  val serialise_i64 : i64 -> uint8 list
   val mem_rep_write_i32_of_i64 : Pbytes.pbt -> nat -> i64 -> Pbytes.pbt
-  val serialise_i32 : i32 -> uint8 list
+  val mem_rep_write_i32 : Pbytes.pbt -> nat -> i32 -> Pbytes.pbt
   val mem_rep_write_i32_of_i32 : Pbytes.pbt -> nat -> i32 -> Pbytes.pbt
   val mem_rep_write_i16_of_i64 : Pbytes.pbt -> nat -> i64 -> Pbytes.pbt
   val mem_rep_write_i16_of_i32 : Pbytes.pbt -> nat -> i32 -> Pbytes.pbt
@@ -1103,7 +1100,6 @@ module WasmRef_Isa : sig
               v list ->
                 (unit limit_t_ext * Pbytes.pbt) list * (v list * res_step)
   val mem_rep_write_i64 : Pbytes.pbt -> nat -> i64 -> Pbytes.pbt
-  val mem_rep_write_i32 : Pbytes.pbt -> nat -> i32 -> Pbytes.pbt
   val mem_rep_write_f64 : Pbytes.pbt -> nat -> F64Wrapper.t -> Pbytes.pbt
   val mem_rep_write_f32 : Pbytes.pbt -> nat -> F32Wrapper.t -> Pbytes.pbt
   val store_v_numa :
@@ -1288,6 +1284,10 @@ module WasmRef_Isa : sig
         (unit limit_t_ext * Pbytes.pbt) list ->
           unit f_ext -> v list -> v list * res_step
   val bits_vec : v_vec -> uint8 list
+  val bin_rsplit_rev : nat -> nat -> int -> int list
+  val word_rsplit_rev : 'a len -> 'b len -> 'a word -> 'b word list
+  val serialise_i64 : i64 -> uint8 list
+  val serialise_i32 : i32 -> uint8 list
   val bits_num : v_num -> uint8 list
   val app_replace_vec : shape_vec -> nat -> v_vec -> v_num -> v_vec
   val app_v_s_replace_vec : shape_vec -> nat -> v list -> v list * res_step
@@ -4600,61 +4600,37 @@ let rec split_v_s_es_aux
 
 let rec split_v_s_es es = split_v_s_es_aux [] es;;
 
-let rec bin_rsplit_rev
-  n m c =
-    (if equal_nata m zero_nat || equal_nata n zero_nat then []
-      else (let (a, b) = bin_split n c in
-             b :: bin_rsplit_rev n (minus_nat m n) a));;
-
-let rec word_rsplit_rev _A _B
-  w = map (of_int _B)
-        (bin_rsplit_rev (len_of _B.len0_len Type) (len_of _A.len0_len Type)
-          (the_int _A w));;
-
-let rec serialise_i64
-  (I64_impl_abs x) =
-    map abs_uint8
-      (word_rsplit_rev
-        (len_bit0
-          (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1))))))
-        (len_bit0 (len_bit0 (len_bit0 len_num1))) (rep_uint64 x));;
-
 let rec mem_rep_write_i32_of_i64
-  m n vala =
-    mem_rep_write_bytes m n
-      (bytes_takefill zero_byte (tp_num_length Tp_i32) (serialise_i64 vala));;
+  m n vi64 =
+    Pbytes.set_int32 m (nat_to_ocaml_int n)
+      (isabelle_int32_to_ocaml_int32 (wasm_wrap vi64));;
 
-let rec serialise_i32
-  (I32_impl_abs x) =
-    map abs_uint8
-      (word_rsplit_rev
-        (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1)))))
-        (len_bit0 (len_bit0 (len_bit0 len_num1))) (rep_uint32 x));;
-
-let rec mem_rep_write_i32_of_i32
+let rec mem_rep_write_i32
   m n vala =
-    mem_rep_write_bytes m n
-      (bytes_takefill zero_byte (tp_num_length Tp_i32) (serialise_i32 vala));;
+    Pbytes.set_int32 m (nat_to_ocaml_int n)
+      (isabelle_int32_to_ocaml_int32 vala);;
+
+let rec mem_rep_write_i32_of_i32 x = mem_rep_write_i32 x;;
 
 let rec mem_rep_write_i16_of_i64
-  m n vala =
-    mem_rep_write_bytes m n
-      (bytes_takefill zero_byte (tp_num_length Tp_i16) (serialise_i64 vala));;
+  m n vi64 =
+    Pbytes.set_int16 m (nat_to_ocaml_int n)
+      (Z.to_int (LibAux.z_of_uint64 (isabelle_int64_to_ocaml_int64 vi64)));;
 
 let rec mem_rep_write_i16_of_i32
   m n vala =
-    mem_rep_write_bytes m n
-      (bytes_takefill zero_byte (tp_num_length Tp_i16) (serialise_i32 vala));;
+    Pbytes.set_int16 m (nat_to_ocaml_int n)
+      (Z.to_int (LibAux.z_of_uint32 (isabelle_int32_to_ocaml_int32 vala)));;
 
 let rec mem_rep_write_i8_of_i64
-  m n vala =
-    mem_rep_write_bytes m n
-      (bytes_takefill zero_byte (tp_num_length Tp_i8) (serialise_i64 vala));;
+  m n vi64 =
+    Pbytes.set_int8 m (nat_to_ocaml_int n)
+      (Z.to_int (LibAux.z_of_uint64 (isabelle_int64_to_ocaml_int64 vi64)));;
 
 let rec mem_rep_write_i8_of_i32
   m n vala =
-    mem_rep_write_bytes m n
-      (bytes_takefill zero_byte (tp_num_length Tp_i8) (serialise_i32 vala));;
+    Pbytes.set_int8 m (nat_to_ocaml_int n)
+      (Z.to_int (LibAux.z_of_uint32 (isabelle_int32_to_ocaml_int32 vala)));;
 
 let rec f64_serialise_isabelle_bytes
   f = map ocaml_char_to_isabelle_byte (ImplWrapper.serialise_f64 f);;
@@ -4733,11 +4709,6 @@ let rec mem_rep_write_i64
   m n vi64 =
     Pbytes.set_int64 m (nat_to_ocaml_int n)
       (isabelle_int64_to_ocaml_int64 vi64);;
-
-let rec mem_rep_write_i32
-  m n vala =
-    Pbytes.set_int32 m (nat_to_ocaml_int n)
-      (isabelle_int32_to_ocaml_int32 vala);;
 
 let rec mem_rep_write_f64
   m n vf64 =
@@ -5674,6 +5645,32 @@ let rec app_s_f_v_s_load_vec
         | V_ref _ :: _ -> (v_s, crash_invalid)));;
 
 let rec bits_vec v = (let ConstVec128 a = v in serialise_v128 a);;
+
+let rec bin_rsplit_rev
+  n m c =
+    (if equal_nata m zero_nat || equal_nata n zero_nat then []
+      else (let (a, b) = bin_split n c in
+             b :: bin_rsplit_rev n (minus_nat m n) a));;
+
+let rec word_rsplit_rev _A _B
+  w = map (of_int _B)
+        (bin_rsplit_rev (len_of _B.len0_len Type) (len_of _A.len0_len Type)
+          (the_int _A w));;
+
+let rec serialise_i64
+  (I64_impl_abs x) =
+    map abs_uint8
+      (word_rsplit_rev
+        (len_bit0
+          (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1))))))
+        (len_bit0 (len_bit0 (len_bit0 len_num1))) (rep_uint64 x));;
+
+let rec serialise_i32
+  (I32_impl_abs x) =
+    map abs_uint8
+      (word_rsplit_rev
+        (len_bit0 (len_bit0 (len_bit0 (len_bit0 (len_bit0 len_num1)))))
+        (len_bit0 (len_bit0 (len_bit0 len_num1))) (rep_uint32 x));;
 
 let rec bits_num
   v = (match v with ConstInt32 a -> serialise_i32 a
