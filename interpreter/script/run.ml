@@ -311,7 +311,10 @@ let store_isa = ref (WasmRef_Isa.make_empty_store_m ())
 
 let configure_isa () =
   let (s', spectest_exports) = Spectest_isa.install_spectest_isa !store_isa in
-  store_isa := s'; exports_isa := Map_isa.add "spectest" spectest_exports !exports_isa
+  let (s'', env_exports) = Env_isa.install_env_isa s' in
+  store_isa := s'';
+  exports_isa := Map_isa.add "spectest" spectest_exports !exports_isa;
+  exports_isa := Map_isa.add "env" env_exports !exports_isa
 
 let m_name_isa x_opt =
   match x_opt with

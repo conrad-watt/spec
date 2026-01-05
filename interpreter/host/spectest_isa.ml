@@ -17,6 +17,19 @@ let print_value (v : v) =
 let print' : host =
   Abs_host_m (fun (s, vs) -> fun () -> List.iter print_value vs; flush_all (); Some (s, []))
 
+(* let clock_ms = 
+  let seconds = Unix.gettimeofday () in
+  print_string "calling the clock";
+  (Int64.of_float (seconds *. 1000.)) *)
+
+(* let clock_ms'' vs =
+  let seconds = Unix.gettimeofday () in
+  let milliseconds = (Int64.of_float (seconds *. 1000.)) in
+  [V_num (ConstInt64 (I64_impl_abs milliseconds))]
+
+let clock_ms' : host =
+  Abs_host_m (fun (s, vs) -> fun () -> Some (s, clock_ms'' vs)) *)
+
 let spectest_func_imports =
  [("print", Func_host (Tf ([],[]), print'));
   ("print_i32", Func_host (Tf ([T_num T_i32],[]), print'));

@@ -38,9 +38,13 @@ let abort vs =
 let exit vs =
   exit (int (single vs))
 
+let clock_ms vs =
+  let seconds = Unix.gettimeofday () in
+  [Num (I64Num.to_num (Int64.of_float (seconds *. 1000.)))]
 
 let lookup name t =
   match Utf8.encode name, t with
   | "abort", ExternFuncType t -> ExternFunc (Func.alloc_host t abort)
   | "exit", ExternFuncType t -> ExternFunc (Func.alloc_host t exit)
+  | "clock_ms", ExternFuncType (FuncType ([], [NumType I64Type])) -> ExternFunc (Func.alloc_host (FuncType ([], [NumType I64Type])) clock_ms)
   | _ -> raise Not_found
