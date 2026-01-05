@@ -1,5 +1,7 @@
 let of_int_s x = I32.of_int_s x
 
+let to_int_s x = I32.to_int_s x
+
 let wrap_i64 x = I32_convert.wrap_i64 x
 
 let trunc_u_f32 x =
