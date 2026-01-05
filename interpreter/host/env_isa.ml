@@ -4,13 +4,13 @@
 
  open WasmRef_Isa.WasmRef_Isa
  
- let clock_ms' vs =
+ let clock_ms vs =
    let seconds = Unix.gettimeofday () in
    let milliseconds = (Int64.of_float (seconds *. 1000.)) in
    [V_num (ConstInt64 (I64_impl_abs milliseconds))]
  
  let clock_ms' : host =
-   Host_func (Abs_host_func (fun (s, vs) -> Some (s, clock_ms' vs)))
+   Host_func (Abs_host_func (fun (s, vs) -> Some (s, clock_ms vs)))
  
   let env_func_imports =
    [
