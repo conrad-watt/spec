@@ -3,6 +3,8 @@ let extend_s_i32 x = I64_convert.extend_i32_s x
 
 let of_int_s x = I64.of_int_s x
 
+let to_int_s x = I64.to_int_s x
+
 let trunc_u_f32 x =
   try
     Some (I64_convert.trunc_f32_u x)
