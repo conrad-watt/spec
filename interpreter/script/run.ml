@@ -307,12 +307,14 @@ let registry : Instance.module_inst Map.t ref = ref Map.empty
 
 let exports_isa : ((string * WasmRef_Isa.v_ext) list) Map_isa.t ref = ref Map_isa.empty
 
-(* let store_isa = ref (WasmRef_Isa.make_empty_store_m ()) *)
 let store_isa = ref (WasmRef_Isa.S_ext ([],[],[],[],[],[],()))
 
 let configure_isa () =
   let (s', spectest_exports) = Spectest_isa.install_spectest_isa !store_isa in
-  store_isa := s'; exports_isa := Map_isa.add "spectest" spectest_exports !exports_isa
+  let (s'', env_exports) = Env_isa.install_env_isa s' in
+  store_isa := s'';
+  exports_isa := Map_isa.add "spectest" spectest_exports !exports_isa;
+  exports_isa := Map_isa.add "env" env_exports !exports_isa
 
 let m_name_isa x_opt =
   match x_opt with
@@ -328,7 +330,7 @@ let match_import_isa (m_imp : 'a WasmRef_Isa.module_import_ext) : WasmRef_Isa.v_
   match m_imp with
   | WasmRef_Isa.Module_import_ext (m_str, imp_str, _, _) ->
     try find_export_isa m_str imp_str with
-    | e -> trace ("(Isabelle) error matching import " ^ m_str ^ " " ^ imp_str); raise (Import.Unknown(no_region, "(Isabelle) unknown import"))
+    | e -> trace ("(Isabelle) error matching import " ^ m_str ^ " " ^ imp_str); raise (Import.Unknown(no_region, "(Isabelle) unknown import: " ^ m_str ^ " " ^ imp_str))
 
 let bind map x_opt y =
   let map' =
