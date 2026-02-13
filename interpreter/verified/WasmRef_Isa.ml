@@ -4346,35 +4346,32 @@ let rec split_v_s_es es = split_v_s_es_aux [] es;;
 
 let rec mem_rep_write_i32_of_i64
   m n vi64 =
-    Pbytes.set_int32 m (nat_to_ocaml_int n)
-      (isabelle_int32_to_ocaml_int32 (wasm_wrap vi64));;
+    Pbytes.set_int32 m (nat_to_ocaml_int n) (i32_impl_rep (wasm_wrap vi64));;
 
 let rec mem_rep_write_i32
-  m n vala =
-    Pbytes.set_int32 m (nat_to_ocaml_int n)
-      (isabelle_int32_to_ocaml_int32 vala);;
+  m n vala = Pbytes.set_int32 m (nat_to_ocaml_int n) (i32_impl_rep vala);;
 
 let rec mem_rep_write_i32_of_i32 x = mem_rep_write_i32 x;;
 
 let rec mem_rep_write_i16_of_i64
   m n vi64 =
     Pbytes.set_int16 m (nat_to_ocaml_int n)
-      (I64Wrapper_convert.to_int_s (isabelle_int64_to_ocaml_int64 vi64));;
+      (I64Wrapper_convert.to_int_s (i64_impl_rep vi64));;
 
 let rec mem_rep_write_i16_of_i32
   m n vala =
     Pbytes.set_int16 m (nat_to_ocaml_int n)
-      (Z.to_int (LibAux.z_of_uint32 (isabelle_int32_to_ocaml_int32 vala)));;
+      (Z.to_int (integer_of_uint32 (i32_impl_rep vala)));;
 
 let rec mem_rep_write_i8_of_i64
   m n vi64 =
     Pbytes.set_int8 m (nat_to_ocaml_int n)
-      (I64Wrapper_convert.to_int_s (isabelle_int64_to_ocaml_int64 vi64));;
+      (I64Wrapper_convert.to_int_s (i64_impl_rep vi64));;
 
 let rec mem_rep_write_i8_of_i32
   m n vala =
     Pbytes.set_int8 m (nat_to_ocaml_int n)
-      (Z.to_int (LibAux.z_of_uint32 (isabelle_int32_to_ocaml_int32 vala)));;
+      (Z.to_int (integer_of_uint32 (i32_impl_rep vala)));;
 
 let rec f64_serialise_isabelle_bytes
   f = map ocaml_char_to_isabelle_byte (ImplWrapper.serialise_f64 f);;
@@ -4450,9 +4447,7 @@ let rec app_s_f_v_s_store_packed
         | V_ref _ :: _ -> (ms, (v_s, crash_invalid))));;
 
 let rec mem_rep_write_i64
-  m n vi64 =
-    Pbytes.set_int64 m (nat_to_ocaml_int n)
-      (isabelle_int64_to_ocaml_int64 vi64);;
+  m n vi64 = Pbytes.set_int64 m (nat_to_ocaml_int n) (i64_impl_rep vi64);;
 
 let rec mem_rep_write_f64
   m n vf64 =
@@ -4508,32 +4503,32 @@ let rec app_s_f_v_s_store_maybe_packed
       | Some tp -> app_s_f_v_s_store_packed t tp off ms f v_s);;
 
 let rec mem_rep_read_i64_of_u32
-  m n = ocaml_int64_to_isabelle_int64
+  m n = I64_impl_abs
           (I64Wrapper_convert.extend_u_i32
             (Pbytes.get_int32 m (nat_to_ocaml_int n)));;
 
 let rec mem_rep_read_i64_of_u16
-  m n = ocaml_int64_to_isabelle_int64
+  m n = I64_impl_abs
           (I64Wrapper_convert.of_int_s
             (Pbytes.get_uint16 m (nat_to_ocaml_int n)));;
 
 let rec mem_rep_read_i64_of_i32
-  m n = ocaml_int64_to_isabelle_int64
+  m n = I64_impl_abs
           (I64Wrapper_convert.extend_s_i32
             (Pbytes.get_int32 m (nat_to_ocaml_int n)));;
 
 let rec mem_rep_read_i64_of_i16
-  m n = ocaml_int64_to_isabelle_int64
+  m n = I64_impl_abs
           (I64Wrapper_convert.of_int_s
             (Pbytes.get_int16 m (nat_to_ocaml_int n)));;
 
 let rec mem_rep_read_i64_of_u8
-  m n = ocaml_int64_to_isabelle_int64
+  m n = I64_impl_abs
           (I64Wrapper_convert.of_int_s
             (Pbytes.get_uint8 m (nat_to_ocaml_int n)));;
 
 let rec mem_rep_read_i64_of_i8
-  m n = ocaml_int64_to_isabelle_int64
+  m n = I64_impl_abs
           (I64Wrapper_convert.of_int_s
             (Pbytes.get_int8 m (nat_to_ocaml_int n)));;
 
@@ -4547,30 +4542,28 @@ let rec mem_rep_read_i64_packed
       | (U, Tp_i32) -> mem_rep_read_i64_of_u32 m n);;
 
 let rec mem_rep_read_i32_of_u32
-  m n = ocaml_int32_to_isabelle_int32
-          (Pbytes.get_int32 m (nat_to_ocaml_int n));;
+  m n = I32_impl_abs (Pbytes.get_int32 m (nat_to_ocaml_int n));;
 
 let rec mem_rep_read_i32_of_u16
-  m n = ocaml_int32_to_isabelle_int32
+  m n = I32_impl_abs
           (I32Wrapper_convert.of_int_s
             (Pbytes.get_uint16 m (nat_to_ocaml_int n)));;
 
 let rec mem_rep_read_i32_of_i32
-  m n = ocaml_int32_to_isabelle_int32
-          (Pbytes.get_int32 m (nat_to_ocaml_int n));;
+  m n = I32_impl_abs (Pbytes.get_int32 m (nat_to_ocaml_int n));;
 
 let rec mem_rep_read_i32_of_i16
-  m n = ocaml_int32_to_isabelle_int32
+  m n = I32_impl_abs
           (I32Wrapper_convert.of_int_s
             (Pbytes.get_int16 m (nat_to_ocaml_int n)));;
 
 let rec mem_rep_read_i32_of_u8
-  m n = ocaml_int32_to_isabelle_int32
+  m n = I32_impl_abs
           (I32Wrapper_convert.of_int_s
             (Pbytes.get_uint8 m (nat_to_ocaml_int n)));;
 
 let rec mem_rep_read_i32_of_i8
-  m n = ocaml_int32_to_isabelle_int32
+  m n = I32_impl_abs
           (I32Wrapper_convert.of_int_s
             (Pbytes.get_int8 m (nat_to_ocaml_int n)));;
 
@@ -4646,12 +4639,10 @@ let rec app_s_f_v_s_load_packed
         | V_ref _ :: _ -> (v_s, crash_invalid)));;
 
 let rec mem_rep_read_i64
-  m n = ocaml_int64_to_isabelle_int64
-          (Pbytes.get_int64 m (nat_to_ocaml_int n));;
+  m n = I64_impl_abs (Pbytes.get_int64 m (nat_to_ocaml_int n));;
 
 let rec mem_rep_read_i32
-  m n = ocaml_int32_to_isabelle_int32
-          (Pbytes.get_int32 m (nat_to_ocaml_int n));;
+  m n = I32_impl_abs (Pbytes.get_int32 m (nat_to_ocaml_int n));;
 
 let rec mem_rep_read_f64
   m n = I64Wrapper_convert.reinterpret_to_f64
