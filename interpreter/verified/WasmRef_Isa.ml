@@ -794,7 +794,6 @@ module WasmRef_Isa : sig
   val memsa : 'a inst_ext -> nat list
   val tabsa : 'a inst_ext -> nat list
   val tab_t_lim : tab_t -> unit limit_t_ext
-  val ocaml_int64_to_isabelle_int64 : Int64.t -> i64
   val isabelle_i64_trunc_sat_u_f64 : F64Wrapper.t -> i64
   val ui64_trunc_sat_f64 : F64Wrapper.t -> i64
   val isabelle_i64_trunc_sat_u_f32 : F32Wrapper.t -> i64
@@ -814,7 +813,6 @@ module WasmRef_Isa : sig
   val wasm_extend_u : i32 -> i64
   val wasm_extend_s : i32 -> i64
   val cvt_i64 : (sat * sx) option -> v_num -> i64 option
-  val ocaml_int32_to_isabelle_int32 : Int32.t -> i32
   val isabelle_i32_trunc_sat_u_f64 : F64Wrapper.t -> i32
   val ui32_trunc_sat_f64 : F64Wrapper.t -> i32
   val isabelle_i32_trunc_sat_u_f32 : F32Wrapper.t -> i32
@@ -834,11 +832,9 @@ module WasmRef_Isa : sig
   val wasm_wrap : i64 -> i32
   val cvt_i32 : (sat * sx) option -> v_num -> i32 option
   val i64_impl_rep : i64 -> int64
-  val isabelle_int64_to_ocaml_int64 : i64 -> Int64.t
   val f64_convert_u_isabelle_i64 : i64 -> F64Wrapper.t
   val f64_convert_ui64 : i64 -> F64Wrapper.t
   val i32_impl_rep : i32 -> int32
-  val isabelle_int32_to_ocaml_int32 : i32 -> Int32.t
   val f64_convert_u_isabelle_i32 : i32 -> F64Wrapper.t
   val f64_convert_ui32 : i32 -> F64Wrapper.t
   val f64_convert_s_isabelle_i64 : i64 -> F64Wrapper.t
@@ -3222,50 +3218,43 @@ let rec tabsa
 
 let rec tab_t_lim tt = (let T_tab (lim, _) = tt in lim);;
 
-let rec ocaml_int64_to_isabelle_int64
-  n = I64_impl_abs (uint64 (LibAux.z_of_uint64 n));;
-
 let rec isabelle_i64_trunc_sat_u_f64
-  f = ocaml_int64_to_isabelle_int64 (I64Wrapper_convert.trunc_sat_u_f64 f);;
+  f = I64_impl_abs (I64Wrapper_convert.trunc_sat_u_f64 f);;
 
 let rec ui64_trunc_sat_f64 x = isabelle_i64_trunc_sat_u_f64 x;;
 
 let rec isabelle_i64_trunc_sat_u_f32
-  f = ocaml_int64_to_isabelle_int64 (I64Wrapper_convert.trunc_sat_u_f32 f);;
+  f = I64_impl_abs (I64Wrapper_convert.trunc_sat_u_f32 f);;
 
 let rec ui64_trunc_sat_f32 x = isabelle_i64_trunc_sat_u_f32 x;;
 
 let rec isabelle_i64_trunc_sat_s_f64
-  f = ocaml_int64_to_isabelle_int64 (I64Wrapper_convert.trunc_sat_s_f64 f);;
+  f = I64_impl_abs (I64Wrapper_convert.trunc_sat_s_f64 f);;
 
 let rec si64_trunc_sat_f64 x = isabelle_i64_trunc_sat_s_f64 x;;
 
 let rec isabelle_i64_trunc_sat_s_f32
-  f = ocaml_int64_to_isabelle_int64 (I64Wrapper_convert.trunc_sat_s_f32 f);;
+  f = I64_impl_abs (I64Wrapper_convert.trunc_sat_s_f32 f);;
 
 let rec si64_trunc_sat_f32 x = isabelle_i64_trunc_sat_s_f32 x;;
 
 let rec isabelle_i64_trunc_u_f64
-  f = map_option ocaml_int64_to_isabelle_int64
-        (I64Wrapper_convert.trunc_u_f64 f);;
+  f = map_option (fun a -> I64_impl_abs a) (I64Wrapper_convert.trunc_u_f64 f);;
 
 let rec ui64_trunc_f64 x = isabelle_i64_trunc_u_f64 x;;
 
 let rec isabelle_i64_trunc_u_f32
-  f = map_option ocaml_int64_to_isabelle_int64
-        (I64Wrapper_convert.trunc_u_f32 f);;
+  f = map_option (fun a -> I64_impl_abs a) (I64Wrapper_convert.trunc_u_f32 f);;
 
 let rec ui64_trunc_f32 x = isabelle_i64_trunc_u_f32 x;;
 
 let rec isabelle_i64_trunc_s_f64
-  f = map_option ocaml_int64_to_isabelle_int64
-        (I64Wrapper_convert.trunc_s_f64 f);;
+  f = map_option (fun a -> I64_impl_abs a) (I64Wrapper_convert.trunc_s_f64 f);;
 
 let rec si64_trunc_f64 x = isabelle_i64_trunc_s_f64 x;;
 
 let rec isabelle_i64_trunc_s_f32
-  f = map_option ocaml_int64_to_isabelle_int64
-        (I64Wrapper_convert.trunc_s_f32 f);;
+  f = map_option (fun a -> I64_impl_abs a) (I64Wrapper_convert.trunc_s_f32 f);;
 
 let rec si64_trunc_f32 x = isabelle_i64_trunc_s_f32 x;;
 
@@ -3302,50 +3291,43 @@ let rec cvt_i64
           | Some (Nonsat, S) -> si64_trunc_f64 c
           | Some (Nonsat, U) -> ui64_trunc_f64 c));;
 
-let rec ocaml_int32_to_isabelle_int32
-  n = I32_impl_abs (uint32 (LibAux.z_of_uint32 n));;
-
 let rec isabelle_i32_trunc_sat_u_f64
-  f = ocaml_int32_to_isabelle_int32 (I32Wrapper_convert.trunc_sat_u_f64 f);;
+  f = I32_impl_abs (I32Wrapper_convert.trunc_sat_u_f64 f);;
 
 let rec ui32_trunc_sat_f64 x = isabelle_i32_trunc_sat_u_f64 x;;
 
 let rec isabelle_i32_trunc_sat_u_f32
-  f = ocaml_int32_to_isabelle_int32 (I32Wrapper_convert.trunc_sat_u_f32 f);;
+  f = I32_impl_abs (I32Wrapper_convert.trunc_sat_u_f32 f);;
 
 let rec ui32_trunc_sat_f32 x = isabelle_i32_trunc_sat_u_f32 x;;
 
 let rec isabelle_i32_trunc_sat_s_f64
-  f = ocaml_int32_to_isabelle_int32 (I32Wrapper_convert.trunc_sat_s_f64 f);;
+  f = I32_impl_abs (I32Wrapper_convert.trunc_sat_s_f64 f);;
 
 let rec si32_trunc_sat_f64 x = isabelle_i32_trunc_sat_s_f64 x;;
 
 let rec isabelle_i32_trunc_sat_s_f32
-  f = ocaml_int32_to_isabelle_int32 (I32Wrapper_convert.trunc_sat_s_f32 f);;
+  f = I32_impl_abs (I32Wrapper_convert.trunc_sat_s_f32 f);;
 
 let rec si32_trunc_sat_f32 x = isabelle_i32_trunc_sat_s_f32 x;;
 
 let rec isabelle_i32_trunc_u_f64
-  f = map_option ocaml_int32_to_isabelle_int32
-        (I32Wrapper_convert.trunc_u_f64 f);;
+  f = map_option (fun a -> I32_impl_abs a) (I32Wrapper_convert.trunc_u_f64 f);;
 
 let rec ui32_trunc_f64 x = isabelle_i32_trunc_u_f64 x;;
 
 let rec isabelle_i32_trunc_u_f32
-  f = map_option ocaml_int32_to_isabelle_int32
-        (I32Wrapper_convert.trunc_u_f32 f);;
+  f = map_option (fun a -> I32_impl_abs a) (I32Wrapper_convert.trunc_u_f32 f);;
 
 let rec ui32_trunc_f32 x = isabelle_i32_trunc_u_f32 x;;
 
 let rec isabelle_i32_trunc_s_f64
-  f = map_option ocaml_int32_to_isabelle_int32
-        (I32Wrapper_convert.trunc_s_f64 f);;
+  f = map_option (fun a -> I32_impl_abs a) (I32Wrapper_convert.trunc_s_f64 f);;
 
 let rec si32_trunc_f64 x = isabelle_i32_trunc_s_f64 x;;
 
 let rec isabelle_i32_trunc_s_f32
-  f = map_option ocaml_int32_to_isabelle_int32
-        (I32Wrapper_convert.trunc_s_f32 f);;
+  f = map_option (fun a -> I32_impl_abs a) (I32Wrapper_convert.trunc_s_f32 f);;
 
 let rec si32_trunc_f32 x = isabelle_i32_trunc_s_f32 x;;
 
@@ -3370,31 +3352,25 @@ let rec cvt_i32
 
 let rec i64_impl_rep (I64_impl_abs x) = x;;
 
-let rec isabelle_int64_to_ocaml_int64
-  n = LibAux.uint64_of_z (integer_of_uint64 (i64_impl_rep n));;
-
 let rec f64_convert_u_isabelle_i64
-  i = F64Wrapper_convert.convert_u_i64 (isabelle_int64_to_ocaml_int64 i);;
+  i = F64Wrapper_convert.convert_u_i64 (i64_impl_rep i);;
 
 let rec f64_convert_ui64 x = f64_convert_u_isabelle_i64 x;;
 
 let rec i32_impl_rep (I32_impl_abs x) = x;;
 
-let rec isabelle_int32_to_ocaml_int32
-  n = LibAux.uint32_of_z (integer_of_uint32 (i32_impl_rep n));;
-
 let rec f64_convert_u_isabelle_i32
-  i = F64Wrapper_convert.convert_u_i32 (isabelle_int32_to_ocaml_int32 i);;
+  i = F64Wrapper_convert.convert_u_i32 (i32_impl_rep i);;
 
 let rec f64_convert_ui32 x = f64_convert_u_isabelle_i32 x;;
 
 let rec f64_convert_s_isabelle_i64
-  i = F64Wrapper_convert.convert_s_i64 (isabelle_int64_to_ocaml_int64 i);;
+  i = F64Wrapper_convert.convert_s_i64 (i64_impl_rep i);;
 
 let rec f64_convert_si64 x = f64_convert_s_isabelle_i64 x;;
 
 let rec f64_convert_s_isabelle_i32
-  i = F64Wrapper_convert.convert_s_i32 (isabelle_int32_to_ocaml_int32 i);;
+  i = F64Wrapper_convert.convert_s_i32 (i32_impl_rep i);;
 
 let rec f64_convert_si32 x = f64_convert_s_isabelle_i32 x;;
 
@@ -3413,22 +3389,22 @@ let rec cvt_f64
       | ConstFloat64 _ -> None);;
 
 let rec f32_convert_u_isabelle_i64
-  i = F32Wrapper_convert.convert_u_i64 (isabelle_int64_to_ocaml_int64 i);;
+  i = F32Wrapper_convert.convert_u_i64 (i64_impl_rep i);;
 
 let rec f32_convert_ui64 x = f32_convert_u_isabelle_i64 x;;
 
 let rec f32_convert_u_isabelle_i32
-  i = F32Wrapper_convert.convert_u_i32 (isabelle_int32_to_ocaml_int32 i);;
+  i = F32Wrapper_convert.convert_u_i32 (i32_impl_rep i);;
 
 let rec f32_convert_ui32 x = f32_convert_u_isabelle_i32 x;;
 
 let rec f32_convert_s_isabelle_i64
-  i = F32Wrapper_convert.convert_s_i64 (isabelle_int64_to_ocaml_int64 i);;
+  i = F32Wrapper_convert.convert_s_i64 (i64_impl_rep i);;
 
 let rec f32_convert_si64 x = f32_convert_s_isabelle_i64 x;;
 
 let rec f32_convert_s_isabelle_i32
-  i = F32Wrapper_convert.convert_s_i32 (isabelle_int32_to_ocaml_int32 i);;
+  i = F32Wrapper_convert.convert_s_i32 (i32_impl_rep i);;
 
 let rec f32_convert_si32 x = f32_convert_s_isabelle_i32 x;;
 
@@ -5548,8 +5524,7 @@ let rec app_v_s_splat_vec
       | V_vec _ :: _ -> (v_s, crash_invalid)
       | V_ref _ :: _ -> (v_s, crash_invalid));;
 
-let rec app_shift_vec_v
-  op2 v n = V128Wrapper.shift_vec op2 v (isabelle_int32_to_ocaml_int32 n);;
+let rec app_shift_vec_v op2 v n = V128Wrapper.shift_vec op2 v (i32_impl_rep n);;
 
 let rec app_shift_vec
   sop v cn =
@@ -5615,8 +5590,7 @@ let rec app_v_s_unop_vec
       | V_vec v1 :: v_sa -> (V_vec (app_unop_vec op v1) :: v_sa, Step_normal)
       | V_ref _ :: _ -> (v_s, crash_invalid));;
 
-let rec app_test_vec_v
-  op1 v = ocaml_int32_to_isabelle_int32 (V128Wrapper.test_vec op1 v);;
+let rec app_test_vec_v op1 v = I32_impl_abs (V128Wrapper.test_vec op1 v);;
 
 let rec app_test_vec op v1 = (let ConstVec128 a = v1 in app_test_vec_v op a);;
 
@@ -5772,29 +5746,23 @@ let rec wasm_reinterpret
           with (T_i32, ConstInt32 _) -> wasm_deserialise_num (bits_num v) t
           | (T_i32, ConstInt64 _) -> wasm_deserialise_num (bits_num v) t
           | (T_i32, ConstFloat32 c) ->
-            ConstInt32
-              (ocaml_int32_to_isabelle_int32
-                (I32Wrapper_convert.reinterpret_of_f32 c))
+            ConstInt32 (I32_impl_abs (I32Wrapper_convert.reinterpret_of_f32 c))
           | (T_i32, ConstFloat64 _) -> wasm_deserialise_num (bits_num v) t
           | (T_i64, ConstInt32 _) -> wasm_deserialise_num (bits_num v) t
           | (T_i64, ConstInt64 _) -> wasm_deserialise_num (bits_num v) t
           | (T_i64, ConstFloat32 _) -> wasm_deserialise_num (bits_num v) t
           | (T_i64, ConstFloat64 c) ->
-            ConstInt64
-              (ocaml_int64_to_isabelle_int64
-                (I64Wrapper_convert.reinterpret_of_f64 c))
+            ConstInt64 (I64_impl_abs (I64Wrapper_convert.reinterpret_of_f64 c))
           | (T_f32, ConstInt32 c) ->
             ConstFloat32
-              (I32Wrapper_convert.reinterpret_to_f32
-                (isabelle_int32_to_ocaml_int32 c))
+              (I32Wrapper_convert.reinterpret_to_f32 (i32_impl_rep c))
           | (T_f32, ConstInt64 _) -> wasm_deserialise_num (bits_num v) t
           | (T_f32, ConstFloat32 _) -> wasm_deserialise_num (bits_num v) t
           | (T_f32, ConstFloat64 _) -> wasm_deserialise_num (bits_num v) t
           | (T_f64, ConstInt32 _) -> wasm_deserialise_num (bits_num v) t
           | (T_f64, ConstInt64 c) ->
             ConstFloat64
-              (I64Wrapper_convert.reinterpret_to_f64
-                (isabelle_int64_to_ocaml_int64 c))
+              (I64Wrapper_convert.reinterpret_to_f64 (i64_impl_rep c))
           | (T_f64, ConstFloat32 _) -> wasm_deserialise_num (bits_num v) t
           | (T_f64, ConstFloat64 _) -> wasm_deserialise_num (bits_num v) t);;
 

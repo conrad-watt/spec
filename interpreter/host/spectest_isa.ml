@@ -36,8 +36,8 @@ let spectest_tab_imports =
   ]
 
 let spectest_glob_imports =
- [("global_i32", Global_ext (T_immut, V_num (ConstInt32 (ocaml_int32_to_isabelle_int32 666l)), ()));
-  ("global_i64", Global_ext (T_immut, V_num (ConstInt64 (ocaml_int64_to_isabelle_int64 666L)), ()));
+ [("global_i32", Global_ext (T_immut, V_num (ConstInt32 (I32_impl_abs 666l)), ()));
+  ("global_i64", Global_ext (T_immut, V_num (ConstInt64 (I64_impl_abs 666L)), ()));
   ("global_f32", Global_ext (T_immut, V_num (ConstFloat32 (F32.of_float 666.6)), ()));
   ("global_f64", Global_ext (T_immut, V_num (ConstFloat64 (F64.of_float 666.6)), ()))
  ]

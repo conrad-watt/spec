@@ -44,8 +44,8 @@ let convert_sx = function
 	| Types.ZX -> U
 
 let convert_value_num = function
-	| I32 c -> ConstInt32 (ocaml_int32_to_isabelle_int32 c)
-	| I64 c -> ConstInt64 (ocaml_int64_to_isabelle_int64 c)
+	| I32 c -> ConstInt32 (I32_impl_abs c)
+	| I64 c -> ConstInt64 (I64_impl_abs c)
 	| F32 c -> ConstFloat32 c
 	| F64 c -> ConstFloat64 c
 
@@ -63,8 +63,8 @@ let convert_value = function
         | Ref r -> V_ref (convert_value_ref r)
 
 let convert_value_num_rev = function
-	| ConstInt32 c -> I32 (isabelle_int32_to_ocaml_int32 c)
-	| ConstInt64 c -> I64 (isabelle_int64_to_ocaml_int64 c)
+	| ConstInt32 c -> I32 (i32_impl_rep c)
+	| ConstInt64 c -> I64 (i64_impl_rep c)
 	| ConstFloat32 c -> F32 c
 	| ConstFloat64 c -> F64 c
 
